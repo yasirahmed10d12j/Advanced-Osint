@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced OSINT — All-in-One Toolkit</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/exifr@7.1.3/dist/exifr.full.js"></script>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#111823; --panel2:#161f2e; --border:#1f2b3d;
+    --accent:#00e5a0; --accent2:#38bdf8; --danger:#f87171; --warn:#fbbf24;
+    --text:#e2e8f0; --muted:#64748b;
+    --mono:'Cascadia Code','Fira Code',Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+
+  header{padding:26px 24px 16px;text-align:center;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#0d1420,var(--bg))}
+  header h1{font-family:var(--mono);font-size:26px;letter-spacing:2px}
+  header h1 span{color:var(--accent)}
+  header p{color:var(--muted);margin-top:6px;font-size:13px}
+  .disclaimer{max-width:1000px;margin:14px auto 0;padding:10px 16px;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.3);border-radius:8px;color:#fca5a5;font-size:12.5px;text-align:left}
+
+  .universal{max-width:860px;margin:26px auto 0;padding:0 16px;text-align:center}
+  .universal .ubox{display:flex;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;box-shadow:0 8px 40px rgba(0,229,160,.06)}
+  .universal input{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;color:var(--text);font-family:var(--mono);font-size:16px;outline:none}
+  .universal input:focus{border-color:var(--accent)}
+  .universal .big{background:var(--accent);color:#04120c;border:none;border-radius:10px;padding:14px 26px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit}
+  .universal .big:hover{filter:brightness(1.1)}
+  .universal .big:disabled{opacity:.5;cursor:wait}
+  .typepill{display:inline-block;margin-top:12px;font-family:var(--mono);font-size:13px;color:var(--accent);background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.3);border-radius:20px;padding:4px 16px}
+
+  nav{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,14,20,.95);backdrop-filter:blur(6px);z-index:500;margin-top:20px}
+  nav button{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  nav button:hover{border-color:var(--accent2)}
+  nav button.active{background:var(--accent);color:#04120c;border-color:var(--accent)}
+
+  main{max-width:1060px;margin:0 auto;padding:22px 16px}
+  .tab{display:none}
+  .tab.active{display:block}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:18px}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:18px}
+  .grid .card{margin-bottom:0}
+  .card h2{font-family:var(--mono);font-size:15px;color:var(--accent2);margin-bottom:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .badge{font-size:10px;padding:2px 8px;border-radius:12px;background:rgba(0,229,160,.12);color:var(--accent);border:1px solid rgba(0,229,160,.3);font-weight:400}
+  .card .desc{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  input[type=text],input[type=email],select{flex:1;min-width:140px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:13.5px;outline:none}
+  input:focus{border-color:var(--accent)}
+  button.go{background:var(--accent);color:#04120c;border:none;border-radius:8px;padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+  button.go:hover{filter:brightness(1.1)}
+  button.go:disabled{opacity:.5;cursor:wait}
+  .chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .chip{background:var(--panel2);border:1px solid var(--border);color:var(--accent2);border-radius:20px;padding:3px 11px;font-size:11.5px;font-family:var(--mono);cursor:pointer}
+  .chip:hover,.chip.active{border-color:var(--accent2);background:rgba(56,189,248,.1)}
+  .result{margin-top:12px;background:#0b0f16;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-word;max-height:340px;overflow-y:auto;display:none}
+  .result.show{display:block}
+  .result .k{color:var(--accent)}
+  .result .err{color:var(--danger)}
+  .result a{color:var(--accent2)}
+  .links{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:7px;margin-top:10px}
+  .links a{background:var(--panel2);border:1px solid var(--border);color:var(--text);text-decoration:none;padding:7px 10px;border-radius:6px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:4px;transition:.15s}
+  .links a:hover{border-color:var(--accent);color:var(--accent)}
+  .status{font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px}
+  .s-found{background:rgba(0,229,160,.15);color:var(--accent)}
+  .s-manual{background:rgba(56,189,248,.15);color:var(--accent2)}
+  .s-none{background:rgba(100,116,139,.15);color:var(--muted)}
+  .dir-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px}
+  .dir-grid a{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:11px;text-decoration:none;color:var(--text);transition:.15s;display:block}
+  .dir-grid a:hover{border-color:var(--accent2);transform:translateY(-2px)}
+  .dir-grid .name{color:var(--accent2);font-weight:600;font-size:13.5px}
+  .dir-grid .cat{color:var(--muted);font-size:11.5px;margin-top:3px}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:22px;border-top:1px solid var(--border);margin-top:20px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #ipMap{height:260px;border-radius:8px;margin-top:12px;display:none;z-index:1}
+  .dork{display:block;padding:7px 10px;margin-top:6px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);text-decoration:none;font-family:var(--mono);font-size:12px}
+  .dork:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* All-in-One progress + report */
+  #aiWrap{max-width:860px;margin:20px auto 0;padding:0 16px;text-align:left}
+  .progress-list{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:14px}
+  /* Live terminal-style scan log */
+  .term{margin-top:12px;background:#05080d;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .term-head{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0b1119;border-bottom:1px solid var(--border);font:11px var(--mono);color:var(--muted)}
+  .term-head .td{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .td.r{background:#f87171}.td.y{background:#fbbf24}.td.g{background:#00e5a0}
+  .term-body{max-height:230px;overflow-y:auto;padding:10px 12px;font:12px/1.65 var(--mono);color:#8fb0a4}
+  .term-body::-webkit-scrollbar{width:6px}.term-body::-webkit-scrollbar-thumb{background:#1f2b3d;border-radius:6px}
+  .tline{white-space:pre-wrap;word-break:break-all}
+  .tline.cmd{color:var(--accent)}
+  .tline.ok{color:var(--accent)}
+  .tline.err{color:var(--danger)}
+  .tline.warn{color:var(--warn)}
+  .tline.dim{color:#4b6472}
+  .tline.live{color:var(--accent2)}
+  .tline .ts{color:#3d5563}
+  .progress-item{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:13px;padding:6px 4px;border-bottom:1px dashed rgba(31,43,61,.8)}
+  .progress-item:last-child{border-bottom:none}
+  .pi-status{font-size:11px;font-weight:700}
+  .st-wait{color:var(--muted)} .st-run{color:var(--accent2)} .st-ok{color:var(--accent)} .st-fail{color:var(--danger)}
+  .report{background:var(--panel);border:1px solid rgba(0,229,160,.35);border-radius:12px;padding:18px;margin-top:16px}
+  .report h2{color:var(--accent);font-family:var(--mono);font-size:17px;margin-bottom:4px}
+  .report .meta{color:var(--muted);font-size:12px;margin-bottom:14px}
+  .rsec{margin-top:14px;background:#0b0f16;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-word}
+  .rsec h3{color:var(--accent2);font-size:13px;margin-bottom:6px;font-family:var(--mono)}
+  .summary{background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.3);border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px}
+  .btnrow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  /* GUI report cards */
+  .sum-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  .sum-card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+  .sum-card .n{font:800 23px var(--mono);color:var(--accent)}
+  .sum-card .n.blue{color:var(--accent2)} .sum-card .n.warn{color:var(--warn)}
+  .sum-card .l{color:var(--muted);font-size:11px;margin-top:2px}
+  .sum-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .sum-pill{font:11px var(--mono);padding:4px 10px;border-radius:20px;border:1px solid rgba(0,229,160,.3);color:var(--accent);background:rgba(0,229,160,.08)}
+  .sum-pill.bad{border-color:rgba(248,113,113,.3);color:var(--danger);background:rgba(248,113,113,.08)}
+  .sections-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(390px,1fr));gap:14px}
+  .mod-card{background:var(--panel2);border:1px solid var(--border);border-radius:11px;overflow:hidden}
+  .mod-head{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid var(--border);background:rgba(56,189,248,.04)}
+  .mod-head .ico{font-size:17px}
+  .mod-head .mt{font:700 12.5px var(--mono);color:var(--accent2);flex:1;line-height:1.4}
+  .mod-head .mpill{font:10px var(--mono);padding:3px 8px;border-radius:20px;white-space:nowrap}
+  .mpill.ok{background:rgba(0,229,160,.13);color:var(--accent)}
+  .mpill.na{background:rgba(100,116,139,.15);color:var(--muted)}
+  .mod-body{padding:12px 13px}
+  .kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:8px}
+  .kv-item{background:#0b0f16;border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:0}
+  .kv-label{color:var(--muted);font:10px var(--mono);text-transform:uppercase;letter-spacing:.6px}
+  .kv-value{color:var(--text);font:12.5px var(--mono);margin-top:4px;word-break:break-word;line-height:1.5}
+  .kv-value.good{color:var(--accent)} .kv-value.warn{color:var(--warn)} .kv-value.bad{color:var(--danger)}
+  .mod-links{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+  .mod-links a{font:11px var(--mono);color:var(--accent2);text-decoration:none;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.25);border-radius:20px;padding:4px 10px}
+  .mod-links a:hover{border-color:var(--accent2)}
+  .mod-list{margin:10px 0 0;padding:0;list-style:none}
+  .mod-list li{font:11.5px/1.7 var(--mono);color:var(--muted);padding:3px 0 3px 15px;position:relative;word-break:break-word}
+  .mod-list li:before{content:'▸';position:absolute;left:0;color:var(--accent)}
+  .mod-note{color:var(--muted);font-size:12px;margin-top:9px;line-height:1.6}
+  .subhead{font:700 11px var(--mono);color:var(--accent);letter-spacing:1px;margin:12px 0 5px;text-transform:uppercase}
+  .rsec{background:#0b0f16;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-word}
+  /* Advanced modules */
+  .scorebar{height:12px;border-radius:8px;background:var(--panel2);border:1px solid var(--border);overflow:hidden;margin:10px 0}
+  .scorebar i{display:block;height:100%;width:0;transition:width .6s ease;background:linear-gradient(90deg,#00e5a0,#fbbf24,#f87171)}
+  .verdict{font-family:var(--mono);font-weight:800;font-size:15px;padding:6px 14px;border-radius:8px;display:inline-block;margin-top:6px}
+  .v-safe{background:rgba(0,229,160,.14);color:var(--accent);border:1px solid rgba(0,229,160,.4)}
+  .v-mid{background:rgba(251,191,36,.14);color:var(--warn);border:1px solid rgba(251,191,36,.4)}
+  .v-high{background:rgba(248,113,113,.14);color:var(--danger);border:1px solid rgba(248,113,113,.4)}
+  .finding{padding:8px 11px;margin-top:7px;border-radius:7px;border-left:3px solid var(--muted);background:var(--panel2);font-family:var(--mono);font-size:12.5px;line-height:1.6}
+  .finding.high{border-left-color:var(--danger)} .finding.med{border-left-color:var(--warn)} .finding.low{border-left-color:var(--accent)}
+  .case{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:12px;margin-top:9px;display:flex;gap:12px;align-items:flex-start}
+  .case .cbody{flex:1;min-width:0}
+  .case .ctarget{font-family:var(--mono);font-size:14px;color:var(--accent2);word-break:break-all}
+  .case .cnote{color:var(--muted);font-size:12.5px;margin-top:5px;white-space:pre-wrap;word-break:break-word}
+  .case .cmeta{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:6px}
+  .case .cbtns{display:flex;gap:5px;flex-shrink:0}
+  .case .cbtns button{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:11px;font-family:inherit}
+  .case .cbtns button:hover{border-color:var(--accent);color:var(--accent)}
+  .tag{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(56,189,248,.12);color:var(--accent2);border:1px solid rgba(56,189,248,.3);margin-left:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>[ <span>ADVANCED</span>_OSINT ]</h1>
+  <p>All-in-One Open Source Intelligence Suite — sirf public / legally accessible data</p>
+  <div class="disclaimer">
+    ⚠️ <b>Legal notice:</b> Ye tool sirf public records aur open APIs query karta hai. Use sirf authorized
+    research, security audits, journalism aur legal investigations ke liye karein. Stalking, harassment,
+    doxxing ya kisi bhi illegal activity ke liye use mana hai. Aap apne actions ke liye khud zimmedar hain.
+  </div>
+</header>
+
+<!-- ============ ALL-IN-ONE UNIVERSAL SEARCH ============ -->
+<div class="universal">
+  <div class="ubox">
+    <input type="text" id="aiInput" placeholder="Kuch bhi daalo — IP, domain, email, phone, username, BTC/ETH address, naam..." autocomplete="off">
+    <button class="big" id="aiBtn" onclick="runAllInOne()">🔍 Scan</button>
+  </div>
+  <div id="aiType"></div>
+</div>
+<div id="aiWrap" style="display:none">
+  <div class="progress-list" id="aiProgress"></div>
+  <div class="term">
+    <div class="term-head">
+      <span class="td r"></span><span class="td y"></span><span class="td g"></span>
+      <span>advanced@osint:~$ scan --live-log</span>
+      <span style="flex:1"></span><span id="termClock">--:--:--</span>
+    </div>
+    <div class="term-body" id="aiTermBody"></div>
+  </div>
+  <div class="report" id="aiReport" style="display:none">
+    <h2>📊 FINAL ADVANCED OSINT REPORT</h2>
+    <div class="meta" id="aiMeta"></div>
+    <div class="summary" id="aiSummary"></div>
+    <div id="aiSections"></div>
+    <div class="btnrow">
+      <button class="go" onclick="downloadReport()">⬇️ Report Download (.txt)</button>
+      <button class="go" onclick="copyReport()" style="background:var(--accent2)">📋 Copy Report</button>
+    </div>
+  </div>
+</div>
+
+<nav id="nav" style="margin-top:26px">
+  <button data-tab="ip">🌐 IP &amp; Network</button>
+  <button data-tab="dns">🔎 Domain &amp; DNS</button>
+  <button data-tab="email">📧 Email</button>
+  <button data-tab="user">👤 Username</button>
+  <button data-tab="phone">📱 Phone</button>
+  <button data-tab="crypto">🪙 Crypto</button>
+  <button data-tab="threat">🎣 URL Threat</button>
+  <button data-tab="cases">🗂️ Case Files</button>
+  <button data-tab="dork">🧨 Dorks</button>
+  <button data-tab="tools">🧰 Tools</button>
+</nav>
+
+<main>
+
+<!-- ===================== IP & NETWORK ===================== -->
+<section class="tab" id="tab-ip">
+  <div class="card">
+    <h2>🌐 IP Geolocation <span class="badge">ipwho.is</span></h2>
+    <p class="desc">Kisi bhi IP (IPv4/IPv6) ka location, ISP, ASN.</p>
+    <div class="row">
+      <input type="text" id="ipInput" placeholder="8.8.8.8 ya khali = my IP">
+      <button class="go" onclick="lookupIP()">Lookup</button>
+    </div>
+    <div class="result" id="ipResult"></div>
+    <div id="ipMap"></div>
+  </div>
+  <div class="card">
+    <h2>🎯 Deep IP Location <span class="badge">multi-API triangulation</span></h2>
+    <p class="desc">4 alag geolocation databases se coordinates lekar confidence area (radius) calculate karta hai — jitna chhota radius, utni tight location.</p>
+    <div class="row">
+      <input type="text" id="triInput" placeholder="IP address ya khali = apna IP">
+      <button class="go" onclick="deepIPLoc()">Deep Scan</button>
+    </div>
+    <div class="result" id="triResult"></div>
+    <div id="triMap" style="height:280px;border-radius:8px;margin-top:12px;display:none;z-index:1"></div>
+  </div>
+  <div class="card">
+    <h2>📸 Image GPS Extractor <span class="badge">EXIF metadata</span></h2>
+    <p class="desc">Photo upload karo — EXIF GPS coordinates nikal kar map par dikhenge (agar phone ne location save ki ho). 100% offline.</p>
+    <div class="row">
+      <input type="file" id="exifInput" accept="image/*" style="flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px;color:var(--text);font-size:13px">
+    </div>
+    <div class="result" id="exifResult"></div>
+    <div id="exifMap" style="height:240px;border-radius:8px;margin-top:12px;display:none;z-index:1"></div>
+  </div>
+  <div class="card">
+    <h2>🧅 Tor Exit Node Check <span class="badge">Tor Project list</span></h2>
+    <p class="desc">IP Tor exit node hai ya nahi — official bulk list se match. Proxy/VPN fingerprinting ke liye.</p>
+    <div class="row">
+      <input type="text" id="torInput" placeholder="IP address ya khali = apna IP">
+      <button class="go" onclick="checkTor()">Check</button>
+    </div>
+    <div class="result" id="torResult"></div>
+  </div>
+  <div class="grid">
+  <div class="card">
+    <h2>🛡️ Shodan InternetDB <span class="badge">free, no key</span></h2>
+    <p class="desc">IP ke open ports, hostnames, CVEs.</p>
+    <div class="row">
+      <input type="text" id="shodanInput" placeholder="1.2.3.4">
+      <button class="go" onclick="lookupShodan()">Scan</button>
+    </div>
+    <div class="result" id="shodanResult"></div>
+  </div>
+  <div class="card">
+    <h2>📡 My Network Info</h2>
+    <p class="desc">Aapka public IP, DNS resolver, WebRTC leak test.</p>
+    <div class="row"><button class="go" onclick="myInfo()">Detect</button></div>
+    <div class="result" id="myInfoResult"></div>
+  </div>
+  </div>
+</section>
+
+<!-- ===================== DOMAIN & DNS ===================== -->
+<section class="tab" id="tab-dns">
+  <div class="grid">
+  <div class="card">
+    <h2>🔎 DNS Records <span class="badge">Google DoH</span></h2>
+    <p class="desc">A, AAAA, MX, TXT, NS, CNAME, SOA records.</p>
+    <div class="row">
+      <input type="text" id="dnsInput" placeholder="example.com">
+      <button class="go" onclick="lookupDNS()">Query</button>
+    </div>
+    <div class="chips" id="dnsTypes">
+      <span class="chip active">A</span><span class="chip">AAAA</span><span class="chip">MX</span>
+      <span class="chip">TXT</span><span class="chip">NS</span><span class="chip">CNAME</span><span class="chip">SOA</span>
+    </div>
+    <div class="result" id="dnsResult"></div>
+  </div>
+  <div class="card">
+    <h2>📄 WHOIS (RDAP) <span class="badge">official protocol</span></h2>
+    <p class="desc">Registrar, dates, nameservers, status.</p>
+    <div class="row">
+      <input type="text" id="rdapInput" placeholder="example.com">
+      <button class="go" onclick="lookupRDAP()">WHOIS</button>
+    </div>
+    <div class="result" id="rdapResult"></div>
+  </div>
+  <div class="card">
+    <h2>🧩 Subdomain Finder <span class="badge">crt.sh CT logs</span></h2>
+    <p class="desc">Certificate Transparency logs se subdomains.</p>
+    <div class="row">
+      <input type="text" id="subInput" placeholder="example.com">
+      <button class="go" onclick="findSubs()">Find</button>
+    </div>
+    <div class="result" id="subResult"></div>
+  </div>
+  <div class="card">
+    <h2>🕸️ Website Scraper <span class="badge">meta + emails + socials</span></h2>
+    <p class="desc">Title, meta, emails, social links, tech hints.</p>
+    <div class="row">
+      <input type="text" id="scrapeInput" placeholder="https://example.com">
+      <button class="go" onclick="scrapeSite()">Scrape</button>
+    </div>
+    <div class="result" id="scrapeResult"></div>
+  </div>
+  <div class="card">
+    <h2>🕰️ Wayback History <span class="badge">archive.org</span></h2>
+    <p class="desc">Oldest/newest snapshot aur archive timeline.</p>
+    <div class="row">
+      <input type="text" id="waybackInput" placeholder="example.com">
+      <button class="go" onclick="lookupWayback()">History</button>
+    </div>
+    <div class="result" id="waybackResult"></div>
+  </div>
+  <div class="card">
+    <h2>🔐 DNS Security Grade <span class="badge">SPF · DMARC · CAA · DNSSEC</span></h2>
+    <p class="desc">Domain ki email/network security posture check karke A–F grade deta hai — missing SPF/DMARC/CAA aur DNSSEC highlight.</p>
+    <div class="row">
+      <input type="text" id="secInput" placeholder="example.com">
+      <button class="go" onclick="dnsSecurityGrade()">Grade</button>
+    </div>
+    <div class="result" id="secResult"></div>
+  </div>
+  <div class="card">
+    <h2>🔗 Quick Domain Intel Links</h2>
+    <p class="desc">Ek domain — sab external tools mein.</p>
+    <div class="row">
+      <input type="text" id="dlInput" placeholder="example.com">
+      <button class="go" onclick="domainLinks()">Open Links</button>
+    </div>
+    <div class="links" id="domainLinksBox"></div>
+  </div>
+  </div>
+</section>
+
+<!-- ===================== EMAIL ===================== -->
+<section class="tab" id="tab-email">
+  <div class="grid">
+  <div class="card">
+    <h2>📧 Email Intelligence</h2>
+    <p class="desc">Gravatar, MX validation, disposable check, breach links.</p>
+    <div class="row">
+      <input type="email" id="emailInput" placeholder="someone@example.com">
+      <button class="go" onclick="lookupEmail()">Check</button>
+    </div>
+    <div class="result" id="emailResult"></div>
+  </div>
+  <div class="card">
+    <h2>📧 Domain Email Recon</h2>
+    <p class="desc">MX providers, SPF/DMARC policy.</p>
+    <div class="row">
+      <input type="text" id="mailDomInput" placeholder="example.com">
+      <button class="go" onclick="emailRecon()">Recon</button>
+    </div>
+    <div class="result" id="emailReconResult"></div>
+  </div>
+  </div>
+</section>
+
+<!-- ===================== USERNAME ===================== -->
+<section class="tab" id="tab-user">
+  <div class="card">
+    <h2>👤 Username Hunter <span class="badge">auto-check + 45+ platforms</span></h2>
+    <p class="desc">APIs wale platforms par auto-check, baaki direct links.</p>
+    <div class="row">
+      <input type="text" id="userInput" placeholder="username">
+      <button class="go" onclick="huntUser()">Hunt</button>
+      <button class="go" onclick="stopHunt()" style="background:var(--danger);color:#fff">Stop</button>
+    </div>
+    <div class="links" id="userLinks"></div>
+  </div>
+  <div class="grid">
+  <div class="card">
+    <h2>🐙 GitHub Deep Recon</h2>
+    <p class="desc">Profile, repos, orgs, gists.</p>
+    <div class="row">
+      <input type="text" id="ghInput" placeholder="username">
+      <button class="go" onclick="lookupGH()">Recon</button>
+    </div>
+    <div class="result" id="ghResult"></div>
+  </div>
+  <div class="card">
+    <h2>🧑‍💼 People Search Links</h2>
+    <p class="desc">Naam daalo — public people-search engines. (Sirf legal use)</p>
+    <div class="row">
+      <input type="text" id="nameInput" placeholder='"John Doe" ya "John Doe" Texas'>
+      <button class="go" onclick="peopleLinks()">Generate</button>
+    </div>
+    <div class="links" id="peopleLinksBox"></div>
+  </div>
+  </div>
+</section>
+
+<!-- ===================== PHONE ===================== -->
+<section class="tab" id="tab-phone">
+  <div class="grid">
+  <div class="card">
+    <h2>📱 Phone Number Analyzer</h2>
+    <p class="desc">Country code, format, OSINT links (Truecaller, sync.me...).</p>
+    <div class="row">
+      <input type="text" id="phoneInput" placeholder="+919876543210">
+      <button class="go" onclick="analyzePhone()">Analyze</button>
+    </div>
+    <div class="result" id="phoneResult"></div>
+  </div>
+  <div class="card">
+    <h2>🗺️ Common Country Codes</h2>
+    <p class="desc">Top calling codes quick reference.</p>
+    <div class="result show" id="ccRef" style="max-height:260px"></div>
+  </div>
+  </div>
+</section>
+
+<!-- ===================== CRYPTO ===================== -->
+<section class="tab" id="tab-crypto">
+  <div class="grid">
+  <div class="card">
+    <h2>🪙 Bitcoin Address <span class="badge">Blockstream API</span></h2>
+    <p class="desc">Balance, total received, tx count.</p>
+    <div class="row">
+      <input type="text" id="btcInput" placeholder="bc1q... / 1... / 3...">
+      <button class="go" onclick="lookupBTC()">Lookup</button>
+    </div>
+    <div class="result" id="btcResult"></div>
+  </div>
+  <div class="card">
+    <h2>⟠ Ethereum Address <span class="badge">Blockchair API</span></h2>
+    <p class="desc">ETH address ka balance, tx count.</p>
+    <div class="row">
+      <input type="text" id="ethInput" placeholder="0x...">
+      <button class="go" onclick="lookupETH()">Lookup</button>
+    </div>
+    <div class="result" id="ethResult"></div>
+  </div>
+  </div>
+</section>
+
+<!-- ===================== URL THREAT ===================== -->
+<section class="tab" id="tab-threat">
+  <div class="card">
+    <h2>🎣 URL Threat Analyzer <span class="badge">phishing heuristics · 100% client-side</span></h2>
+    <p class="desc">Kisi bhi URL ka deep forensic analysis — homograph/punycode attacks, typosquatting, suspicious TLD, IP-literal host, URL entropy aur page-level red flags. Risk score + verdict.</p>
+    <div class="row">
+      <input type="text" id="urlInput" placeholder="https://paypa1-secure-login.xyz/verify">
+      <button class="go" onclick="analyzeURL()">Analyze</button>
+    </div>
+    <div class="chips" id="threatSamples">
+      <span class="chip">paypa1.com</span><span class="chip">https://g00gle-login.xyz</span><span class="chip">https://google.com</span><span class="chip">http://192.168.1.1/admin</span>
+    </div>
+    <div id="urlVerdict"></div>
+    <div class="result" id="urlResult"></div>
+  </div>
+</section>
+
+<!-- ===================== CASE FILES ===================== -->
+<section class="tab" id="tab-cases">
+  <div class="grid">
+  <div class="card">
+    <h2>🗂️ Save Investigation <span class="badge">localStorage · browser me hi rehta hai</span></h2>
+    <p class="desc">Target + notes local case file me save karo. Data kahin upload nahi hota — sirf aapke browser me.</p>
+    <div class="row">
+      <input type="text" id="caseTarget" placeholder="IP / domain / email / username">
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input type="text" id="caseTag" placeholder="Tag (e.g. client-xyz)">
+      <input type="text" id="caseNotes" placeholder="Notes...">
+    </div>
+    <div class="btnrow">
+      <button class="go" onclick="saveCase()">💾 Save Case</button>
+      <button class="go" onclick="exportCases()" style="background:var(--accent2)">⬇️ Export JSON</button>
+      <button class="go" onclick="document.getElementById('importFile').click()" style="background:var(--panel2);color:var(--text);border:1px solid var(--border)">⬆️ Import</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importCases(event)">
+    </div>
+    <div class="result" id="caseMsg"></div>
+  </div>
+  <div class="card">
+    <h2>📁 Saved Cases <span class="badge" id="caseCount">0</span></h2>
+    <div class="row">
+      <input type="text" id="caseSearch" placeholder="Search cases...">
+    </div>
+    <div id="caseList"></div>
+  </div>
+  </div>
+  <div class="card">
+    <h2>🕘 Scan History <span class="badge">last 50 scans</span></h2>
+    <div class="btnrow"><button class="go" onclick="clearHistory()" style="background:var(--danger);color:#fff">Clear history</button></div>
+    <div id="historyList"></div>
+  </div>
+</section>
+
+<!-- ===================== DORKS ===================== -->
+<section class="tab" id="tab-dork">
+  <div class="card">
+    <h2>🧨 Google Dork Generator</h2>
+    <p class="desc">Target daalo — professional dorks (pentest reports ke liye).</p>
+    <div class="row">
+      <input type="text" id="dorkInput" placeholder="example.com ya keyword">
+      <button class="go" onclick="genDorks()">Generate</button>
+    </div>
+    <div id="dorkBox" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ===================== TOOLS ===================== -->
+<section class="tab" id="tab-tools">
+  <div class="card">
+    <h2>🧰 OSINT Tool Directory <span class="badge">45+ tools</span></h2>
+    <p class="desc">Best free/open-source OSINT tools. Sab external, trusted sources.</p>
+    <div class="chips" id="toolFilters">
+      <span class="chip active" data-f="all">All</span>
+      <span class="chip" data-f="Recon">Recon</span>
+      <span class="chip" data-f="People">People</span>
+      <span class="chip" data-f="Domain">Domain</span>
+      <span class="chip" data-f="Images">Images</span>
+      <span class="chip" data-f="Breach">Breach</span>
+      <span class="chip" data-f="CLI">CLI Tools</span>
+    </div>
+    <div class="dir-grid" id="toolDir" style="margin-top:14px"></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Advanced OSINT · Sirf legal &amp; ethical use ke liye · ipwho.is · Shodan InternetDB · Google DNS · RDAP · crt.sh · archive.org · GitHub · Blockstream · Blockchair
+</footer>
+
+<script>
+/* ============================================================
+   HELPERS
+============================================================ */
+const $ = id => document.getElementById(id);
+function show(id, html){ const el=$(id); el.innerHTML=html; el.classList.add('show'); }
+function spin(id){ show(id,'<span class="spin"></span> Scanning...'); }
+function err(id,msg){ show(id,'<span class="err">✗ '+msg+'</span>'); }
+function kv(k,v){ return '<span class="k">'+k+':</span> '+(v??'—')+'\n'; }
+function termLog(msg, type='info'){
+  const box=$('aiTermBody'); if(!box) return;
+  const line=document.createElement('div');
+  line.className='tline '+type;
+  const ts=new Date().toLocaleTimeString('en-GB');
+  line.innerHTML='<span class="ts">['+ts+']</span> '+esc(msg);
+  box.appendChild(line);
+  while(box.children.length>200) box.removeChild(box.firstChild);
+  box.scrollTop=box.scrollHeight;
+  const clk=$('termClock'); if(clk) clk.textContent=ts;
+}
+function termClear(){ const box=$('aiTermBody'); if(box) box.innerHTML=''; }
+function termLive(msg){
+  const box=$('aiTermBody'); if(!box) return;
+  let el=box.querySelector('.tline.live');
+  if(!el){ el=document.createElement('div'); el.className='tline live'; box.appendChild(el); }
+  el.innerHTML='<span class="ts">['+new Date().toLocaleTimeString('en-GB')+']</span> ▌ '+esc(msg);
+  box.scrollTop=box.scrollHeight;
+  return el;
+}
+function termLiveDone(){ const el=$('aiTermBody')?.querySelector('.tline.live'); if(el) el.remove(); }
+function moduleIcon(n){
+  if(/geo|location/i.test(n)) return '🌐'; if(/shodan|ports/i.test(n)) return '🛡️';
+  if(/rdap|whois/i.test(n)) return '📄'; if(/dns|security grade/i.test(n)) return '🔐';
+  if(/subdomain/i.test(n)) return '🧩'; if(/scrap/i.test(n)) return '🕸️';
+  if(/wayback|history/i.test(n)) return '🕰️'; if(/username/i.test(n)) return '👤';
+  if(/email/i.test(n)) return '📧'; if(/phone/i.test(n)) return '📱';
+  if(/bitcoin|ethereum/i.test(n)) return '🪙'; if(/github/i.test(n)) return '🐙';
+  if(/tor/i.test(n)) return '🧅'; if(/url threat/i.test(n)) return '🎣';
+  if(/people/i.test(n)) return '🧑'; if(/reverse/i.test(n)) return '🔄';
+  return '▸';
+}
+function valueClass(v){
+  if(/⚠|HIGH RISK|PHISHING|SUSPENDED|NO ✓|NONE —/i.test(v)) return 'bad';
+  if(/✓|FOUND|confirmed/i.test(v)) return 'good';
+  if(/none|not found|no$|N\/A/i.test(v)) return 'warn';
+  return '';
+}
+function plain(s){
+  const d=document.createElement('div'); d.innerHTML=s;
+  return (d.textContent||'').replace(/\s+/g,' ').trim();
+}
+function renderModuleCard(r){
+  if(!r) return '';
+  const html=String(r.html||''), failed=html.includes('class="err"');
+  const lines=html.split('\n').map(s=>s.trim()).filter(Boolean);
+  const tiles=[], links=[], bullets=[], notes=[], heads=[];
+  for(const line of lines){
+    const m=line.match(/^<span class="k">(.*?):<\/span>(.*)$/);
+    if(m){ tiles.push('<div class="kv-item"><div class="kv-label">'+plain(m[1])+'</div>'+
+      '<div class="kv-value '+valueClass(plain(m[2]))+'">'+plain(m[2]).slice(0,300)+'</div></div>'); continue; }
+    if(/^<a\s/i.test(line)){ const a=line.match(/href="([^"]+)"[^>]*>(.*?)<\/a>/i);
+      if(a) links.push('<a href="'+a[1]+'" target="_blank">'+plain(a[2])+' ↗</a>'); continue; }
+    if(/^[•▸]/.test(line)){ bullets.push('<li>'+esc(plain(line).replace(/^[•▸]\s*/,''))+'</li>'); continue; }
+    if(/:$/.test(line)&&line.length<45){ heads.push('<div class="subhead">'+esc(plain(line))+'</div>'); continue; }
+    if(!/^<span style=/.test(line)) notes.push('<div class="mod-note">'+esc(plain(line))+'</div>');
+  }
+  /* links can be nested inside a span grid on some modules */
+  if(!links.length){
+    const re=/<a href="([^"]+)"[^>]*>(.*?)<\/a>/gi; let x;
+    while((x=re.exec(html))) links.push('<a href="'+x[1]+'" target="_blank">'+plain(x[2])+' ↗</a>');
+  }
+  return '<div class="mod-card"><div class="mod-head"><span class="ico">'+moduleIcon(r.name)+'</span>'+
+    '<span class="mt">'+esc(r.name)+'</span><span class="mpill '+(failed?'na':'ok')+'">'+
+    (failed?'NO DATA':'DONE ✓')+'</span></div><div class="mod-body">'+
+    (tiles.length?'<div class="kv-grid">'+tiles.join('')+'</div>':'')+
+    heads.join('')+(bullets.length?'<ul class="mod-list">'+bullets.join('')+'</ul>':'')+
+    notes.join('')+(links.length?'<div class="mod-links">'+links.slice(0,24).join('')+'</div>':'')+
+    '</div></div>';
+}
+function renderGuiReport(results, foundSecs, total, label, elapsed){
+  const cards='<div class="sum-cards">'+
+    '<div class="sum-card"><div class="n blue">'+foundSecs+'/'+total+'</div><div class="l">modules with data</div></div>'+
+    '<div class="sum-card"><div class="n">'+elapsed+'s</div><div class="l">scan duration</div></div>'+
+    '<div class="sum-card"><div class="n warn">'+esc(label.replace(/^\S+\s/,''))+'</div><div class="l">target type</div></div></div>'+
+    '<div class="sum-pills">'+results.filter(Boolean).map(r=>
+      '<span class="sum-pill'+(r.html&&!r.html.includes('class="err"')?'':' bad')+'">'+
+      (r.html&&!r.html.includes('class="err"')?'✓':'✗')+' '+esc(r.name.split(' ')[0])+'</span>').join('')+'</div>';
+  $('aiSummary').innerHTML=cards;
+  $('aiSections').innerHTML='<div class="sections-grid">'+results.map(renderModuleCard).join('')+'</div>';
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function enterKey(id, fn){ $(id).addEventListener('keydown', e => { if(e.key==='Enter') fn(); }); }
+
+/* Universal fetch: direct → CORS proxies fallback */
+async function smartFetch(url, {json=true}={}){
+  const attempts = [];
+  attempts.push(async () => { const r = await fetch(url); return r; });
+  attempts.push(async () => { const r = await fetch('https://corsproxy.io/?url='+encodeURIComponent(url)); return r; });
+  attempts.push(async () => { const r = await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url));
+      if(!r.ok) return r;
+      const w = await r.json();
+      const code = w.status?.http_code||200;
+      return { ok:code>=200 && code<300, status:code, json:()=>JSON.parse(w.contents), text:()=>w.contents }; });
+  for (const a of attempts){
+    let r;
+    try { r = await a(); } catch(e){ continue; }
+    if (r.status === 404 || r.status === 422) return {status:404};
+    if (r.status === 401 || r.status === 403 || r.status === 429) return {status:r.status};  // bot-block: proxy se bhi repeat mat karo
+    if (r.ok){
+      try { return {status:200, data: json ? await r.json() : null, text: r.text ? await r.text() : null}; }
+      catch(e){ try { return {status:200, text: await r.text()}; } catch(e2){ continue; } }
+    }
+  }
+  return {status:'fail'};
+}
+/* plain text fetch (proxy fallback) */
+async function smartText(url){
+  const direct = await smartFetch(url, {json:false});
+  if (direct.status === 200 && direct.text) return direct.text;
+  try { const r = await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url)); if(r.ok) return await r.text(); } catch(e){}
+  return null;
+}
+
+/* Compact MD5 */
+function md5(str){function rl(n,c){return(n<<c)|(n>>>(32-c));}function au(x,y){var l=(x&0xFFFF)+(y&0xFFFF),m=(x>>16)+(y>>16)+(l>>16);return(m<<16)|(l&0xFFFF);}function cmn(q,a,b,x,s,t){return au(rl(au(au(a,q),au(x,t)),s),b);}function ff(a,b,c,d,x,s,t){return cmn((b&c)|(~b&d),a,b,x,s,t);}function gg(a,b,c,d,x,s,t){return cmn((b&d)|(c&~d),a,b,x,s,t);}function hh(a,b,c,d,x,s,t){return cmn(b^c^d,a,b,x,s,t);}function ii(a,b,c,d,x,s,t){return cmn(c^(b|~d),a,b,x,s,t);}function sb(str){var i,nb=((str.length+8)>>6)+1,blks=new Array(nb*16);for(var i=0;i<nb*16;i++)blks[i]=0;for(i=0;i<str.length;i++)blks[i>>2]|=str.charCodeAt(i)<<((i%4)*8);blks[str.length>>2]|=0x80<<((str.length%4)*8);blks[nb*16-2]=str.length*8;return blks;}var x=sb(str),a=1732584193,b=-271733879,c=-1732584194,d=271733878;for(var i=0;i<x.length;i+=16){var oa=a,ob=b,oc=c,od=d;a=ff(a,b,c,d,x[i],7,-680876936);d=ff(d,a,b,c,x[i+1],12,-389564586);c=ff(c,d,a,b,x[i+2],17,606105819);b=ff(b,c,d,a,x[i+3],22,-1044525330);a=ff(a,b,c,d,x[i+4],7,-176418897);d=ff(d,a,b,c,x[i+5],12,1200080426);c=ff(c,d,a,b,x[i+6],17,-1473231341);b=ff(b,c,d,a,x[i+7],22,-45705983);a=ff(a,b,c,d,x[i+8],7,1770035416);d=ff(d,a,b,c,x[i+9],12,-1958414417);c=ff(c,d,a,b,x[i+10],17,-42063);b=ff(b,c,d,a,x[i+11],22,-1990404162);a=ff(a,b,c,d,x[i+12],7,1804603682);d=ff(d,a,b,c,x[i+13],12,-40341101);c=ff(c,d,a,b,x[i+14],17,-1502002290);b=ff(b,c,d,a,x[i+15],22,1236535329);a=gg(a,b,c,d,x[i+1],5,-165796510);d=gg(d,a,b,c,x[i+6],9,-1069501632);c=gg(c,d,a,b,x[i+11],14,643717713);b=gg(b,c,d,a,x[i],20,-373897302);a=gg(a,b,c,d,x[i+5],5,-701558691);d=gg(d,a,b,c,x[i+10],9,38016083);c=gg(c,d,a,b,x[i+15],14,-660478335);b=gg(b,c,d,a,x[i+4],20,-405537848);a=gg(a,b,c,d,x[i+9],5,568446438);d=gg(d,a,b,c,x[i+14],9,-1019803690);c=gg(c,d,a,b,x[i+3],14,-187363961);b=gg(b,c,d,a,x[i+8],20,1163531501);a=gg(a,b,c,d,x[i+13],5,-1444681467);d=gg(d,a,b,c,x[i+2],9,-51403784);c=gg(c,d,a,b,x[i+7],14,1735328473);b=gg(b,c,d,a,x[i+12],20,-1926607734);a=hh(a,b,c,d,x[i+5],4,-378558);d=hh(d,a,b,c,x[i+8],11,-2022574463);c=hh(c,d,a,b,x[i+11],16,1839030562);b=hh(b,c,d,a,x[i+14],23,-35309556);a=hh(a,b,c,d,x[i+1],4,-1530992060);d=hh(d,a,b,c,x[i+4],11,1272893353);c=hh(c,d,a,b,x[i+7],16,-155497632);b=hh(b,c,d,a,x[i+10],23,-1094730640);a=hh(a,b,c,d,x[i+13],4,681279174);d=hh(d,a,b,c,x[i],11,-358537222);c=hh(c,d,a,b,x[i+3],16,-722521979);b=hh(b,c,d,a,x[i+6],23,76029189);a=hh(a,b,c,d,x[i+9],4,-640364487);d=hh(d,a,b,c,x[i+12],11,-421815835);c=hh(c,d,a,b,x[i+15],16,530742520);b=hh(b,c,d,a,x[i+2],23,-995338651);a=ii(a,b,c,d,x[i],6,-198630844);d=ii(d,a,b,c,x[i+7],10,1126891415);c=ii(c,d,a,b,x[i+14],15,-1416354905);b=ii(b,c,d,a,x[i+5],21,-57434055);a=ii(a,b,c,d,x[i+12],6,1700485571);d=ii(d,a,b,c,x[i+3],10,-1894986606);c=ii(c,d,a,b,x[i+10],15,-1051523);b=ii(b,c,d,a,x[i+1],21,-2054922799);a=ii(a,b,c,d,x[i+8],6,1873313359);d=ii(d,a,b,c,x[i+15],10,-30611744);c=ii(c,d,a,b,x[i+6],15,-1560198380);b=ii(b,c,d,a,x[i+13],21,1309151649);a=ii(a,b,c,d,x[i+4],6,-145523070);d=ii(d,a,b,c,x[i+11],10,-1120210379);c=ii(c,d,a,b,x[i+2],15,718787259);b=ii(b,c,d,a,x[i+9],21,-343485551);a=au(a,oa);b=au(b,ob);c=au(c,oc);d=au(d,od);}function hx(n){var s="",j,v;for(j=0;j<4;j++){v=(n>>>(j*8))&255;s+="0"+v.toString(16);}return s.substr(s.length-2);}return hx(a)+hx(b)+hx(c)+hx(d);}
+
+/* Tab navigation */
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#nav button').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  b.classList.add('active');
+  $('tab-' + b.dataset.tab).classList.add('active');
+  window.scrollTo({top: $('nav').offsetTop - 70, behavior:'smooth'});
+});
+
+/* ============================================================
+   ALL-IN-ONE UNIVERSAL SEARCH ENGINE
+============================================================ */
+function detectType(q){
+  q = q.trim();
+  if (/^0x[a-fA-F0-9]{40}$/.test(q)) return {t:'eth', label:'⟠ Ethereum Address'};
+  if (/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(q) && !/\s/.test(q)) return {t:'btc', label:'🪙 Bitcoin Address'};
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(q)) return {t:'ip', label:'🌐 IP Address'};
+  if (/^[a-f0-9:]{8,45}$/i.test(q) && q.includes(':')) return {t:'ip', label:'🌐 IPv6 Address'};
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q)) return {t:'email', label:'📧 Email Address'};
+  if (/^\+?[\d][\d\s\-().]{7,}$/.test(q)) return {t:'phone', label:'📱 Phone Number'};
+  if (/^https?:\/\//i.test(q)) return {t:'domain', label:'🔎 Website URL'};
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(q)) return {t:'domain', label:'🔎 Domain Name'};
+  if (/\s/.test(q)) return {t:'name', label:'🧑‍💼 Person Name'};
+  return {t:'username', label:'👤 Username'};
+}
+
+let reportText = '';
+function pill(txt){ $('aiType').innerHTML = '<span class="typepill">'+txt+'</span>'; }
+
+async function runAllInOne(){
+  const raw = $('aiInput').value.trim();
+  if (!raw) return;
+  const {t, label} = detectType(raw);
+  pill('Detected: '+label+' — modules launch ho rahe hain...');
+  $('aiBtn').disabled = true;
+  $('aiWrap').style.display = 'block';
+  $('aiReport').style.display = 'none';
+  const prog = $('aiProgress');
+  prog.innerHTML = '';
+
+  /* module list banate hain type ke hisaab se */
+  const mods = [];
+  const add = (name, fn) => mods.push({name, fn});
+
+  if (t === 'ip'){
+    add('IP Geolocation (ipwho.is)', () => modIpGeo(raw));
+    add('Shodan InternetDB (ports/CVEs)', () => modShodan(raw));
+    add('RDAP IP ownership', () => modRdapIp(raw));
+    add('Reverse DNS', () => modReverseDns(raw));
+    add('Tor exit node check', () => modTor(raw));
+  } else if (t === 'domain'){
+    const d = raw.replace(/^https?:\/\//i,'').split('/')[0].toLowerCase();
+    add('DNS Records (A/MX/TXT/NS)', () => modDnsAll(d));
+    add('WHOIS / RDAP', () => modRdap(d));
+    add('Subdomains (crt.sh CT logs)', () => modSubs(d));
+    add('Website Scraper (meta/emails/socials)', () => modScrape(d));
+    add('Wayback Machine history', () => modWayback(d));
+    add('Shodan host intel (A record IP)', () => modShodanViaDomain(d));
+    add('URL Threat Analysis (phishing heuristics)', () => modUrlThreat(d));
+    add('DNS Security Grade (SPF/DMARC/CAA/DNSSEC)', () => modSecGrade(d));
+  } else if (t === 'email'){
+    add('Email Analysis (Gravatar/MX/disposable)', () => modEmail(raw));
+    add('Domain Email Infra (SPF/DMARC)', () => modEmailInfra(raw.split('@')[1]));
+    add('Username check (local part)', () => modUsername(raw.split('@')[0]));
+  } else if (t === 'phone'){
+    add('Phone Analysis + OSINT links', () => modPhone(raw));
+    add('Web presence search', () => modWebSearch(raw));
+  } else if (t === 'crypto'){
+    if (t === 'eth') add('Ethereum Ledger (Blockchair)', () => modEth(raw));
+    else add('Bitcoin Ledger (Blockstream)', () => modBtc(raw));
+  } else if (t === 'name'){
+    add('People Search Links', () => modPeople(raw));
+    add('Web presence search', () => modWebSearch(raw));
+  } else if (t === 'username'){
+    add('GitHub profile', () => modGithub(raw));
+    add('Username hunt (45+ platforms)', () => modUsername(raw));
+  }
+
+  /* progress UI */
+  const items = mods.map((m,i) => '<div class="progress-item" id="pi'+i+'"><span>▸ '+esc(m.name)+'</span><span class="pi-status st-wait">queued</span></div>').join('');
+  prog.innerHTML = items;
+  termClear();
+  termLog('$ advanced-osint-scan --target "'+raw+'" --type '+t, 'cmd');
+  termLog('resolving target type... → '+label, 'info');
+  termLog('spawning '+mods.length+' modules (parallel workers: 3)', 'warn');
+
+  const results = [];
+  const runMod = async (m, i) => {
+    const st = $('pi'+i).querySelector('.pi-status');
+    st.textContent = 'running 0.0s'; st.className = 'pi-status st-run';
+    termLog('$ run --module "'+m.name+'"', 'cmd');
+    const t0 = performance.now();
+    const tick = setInterval(() => {
+      const s = ((performance.now()-t0)/1000).toFixed(1);
+      st.textContent = 'running '+s+'s';
+      termLive('  '+m.name+' ... '+s+'s (network request chal raha hai)');
+    }, 400);
+    let html;
+    try { html = await m.fn(); }
+    catch(e){ html = '<span class="err">Module error: '+esc(e.message)+'</span>'; }
+    clearInterval(tick); termLiveDone();
+    const ms = Math.round(performance.now()-t0);
+    const ok = html && !html.includes('class="err"');
+    st.textContent = (ok?'done ✓ ':'n/a ')+'('+(ms/1000).toFixed(1)+'s)';
+    st.className = 'pi-status ' + (ok ? 'st-ok' : 'st-fail');
+    termLog((ok?'✓ OK ':'✗ NO DATA ')+m.name+' — '+ms+'ms', ok?'ok':'warn');
+    results[i] = {name: m.name, html};
+  };
+  /* concurrency 3 */
+  let idx = 0;
+  await Promise.all(Array(3).fill(0).map(async () => {
+    while (idx < mods.length){ const i = idx++; await runMod(mods[i], i); }
+  }));
+
+  /* final report */
+  const tStart=performance.now();
+  const stamp = new Date().toLocaleString();
+  const foundSecs = results.filter(r => r && r.html && !r.html.includes('class="err"')).length;
+  $('aiMeta').textContent = 'Target: '+raw+' · Type: '+label.replace(/^\S+\s/,'')+' · Generated: '+stamp;
+  renderGuiReport(results, foundSecs, mods.length, label, ((performance.now()-tStart)/1000).toFixed(1));
+  $('aiReport').style.display = 'block';
+  pill('✅ Scan complete — report niche hai');
+  termLog('────────────────────────────────────', 'dim');
+  termLog('✓ SCAN COMPLETE — '+foundSecs+'/'+mods.length+' modules returned data', 'ok');
+  termLog('$ report ready at #aiReport · download/copy buttons neeche hain', 'cmd');
+  $('aiBtn').disabled = false;
+  reportText = 'ADVANCED OSINT REPORT\nTarget: '+raw+'\nType: '+label+'\nGenerated: '+stamp+'\n'+'='.repeat(60)+'\n\n' +
+    results.map(r => '--- '+r.name+' ---\n'+(r.html ? r.html.replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/\s+/g,' ').trim() : '')).join('\n\n');
+  $('aiReport').scrollIntoView({behavior:'smooth', block:'start'});
+  if (typeof recordHistory === 'function') recordHistory(raw, label.replace(/^\S+\s/,''), foundSecs, mods.length);
+}
+enterKey('aiInput', runAllInOne);
+function downloadReport(){
+  const blob = new Blob([reportText], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'advanced-osint-report-' + Date.now() + '.txt';
+  a.click();
+}
+function copyReport(){ navigator.clipboard.writeText(reportText); }
+
+/* ---------- All-in-One modules (data → HTML) ---------- */
+async function modIpGeo(ip){
+  const r = await fetch('https://ipwho.is/'+encodeURIComponent(ip));
+  const d = await r.json();
+  if (d.success === false) throw new Error(d.message||'invalid');
+  return kv('IP', d.ip) + kv('Country', d.country+' ('+d.country_code+')') + kv('Region', d.region) +
+    kv('City', d.city) + kv('Coordinates', d.latitude+', '+d.longitude) +
+    kv('ISP', d.connection?.isp) + kv('Org', d.connection?.org) + kv('ASN', d.connection?.asn) +
+    kv('Timezone', d.timezone?.id) +
+    '\n<a href="https://www.shodan.io/host/'+d.ip+'" target="_blank">Shodan ↗</a> | <a href="https://bgp.he.net/ip/'+d.ip+'" target="_blank">BGP.HE ↗</a>';
+}
+async function modShodan(ip){
+  const r = await smartFetch('https://internetdb.shodan.io/'+ip);
+  if (r.status !== 200) throw new Error('db nahi');
+  const d = r.data;
+  return kv('Open Ports', d.ports?.length ? d.ports.join(', ') : 'none') +
+    kv('Hostnames', d.hostnames?.join(', ') || '—') +
+    kv('CVEs', d.vulns?.length ? d.vulns.join(', ') : 'none');
+}
+async function modRdapIp(ip){
+  const r = await smartFetch('https://rdap.org/ip/'+ip);
+  if (r.status !== 200) throw new Error('rdap nahi');
+  const d = r.data;
+  const name = (d.entities||[])[0]?.vcardArray?.[1]?.find(x=>x[0]==='fn')?.[3] || d.name || '—';
+  return kv('Network Name', name) + kv('Type', d.type) + kv('Country', d.country) +
+    kv('Range', d.startAddress+' — '+d.endAddress) +
+    kv('Remarks', (d.remarks||[])[0]?.description?.[0]?.slice(0,120) || '—');
+}
+async function modReverseDns(ip){
+  const parts = ip.split('.').reverse().join('.');
+  const r = await fetch('https://dns.google/resolve?name='+parts+'.in-addr.arpa&type=PTR');
+  const d = await r.json();
+  if (!d.Answer?.length) throw new Error('no PTR');
+  return kv('PTR Record', d.Answer[0].data);
+}
+async function modDnsAll(d){
+  const types = ['A','AAAA','MX','TXT','NS','CNAME','SOA'];
+  const recs = await Promise.all(types.map(async ty => {
+    try { const r = await fetch('https://dns.google/resolve?name='+encodeURIComponent(d)+'&type='+ty); const j = await r.json();
+      return ty + ': ' + (j.Answer?.length ? j.Answer.map(a=>a.data).join(' | ') : '—'); } catch(e){ return ty+': error'; }
+  }));
+  return recs.join('\n');
+}
+async function modRdap(d){
+  const r = await smartFetch('https://rdap.org/domain/'+encodeURIComponent(d));
+  if (r.status !== 200) throw new Error('rdap nahi');
+  const j = r.data;
+  const ev = {}; (j.events||[]).forEach(e=>ev[e.eventAction]=e.eventDate);
+  const registrar = (j.entities||[]).find(e=>(e.roles||[]).includes('registrar'));
+  return kv('Registrar', registrar?.vcardName || registrar?.handle || '—') +
+    kv('Registered', ev['registration'] && new Date(ev['registration']).toDateString()) +
+    kv('Expires', ev['expiration'] && new Date(ev['expiration']).toDateString()) +
+    kv('Nameservers', (j.nameservers||[]).map(n=>n.ldhName).join(', ')) +
+    kv('Status', (j.status||[]).join(', '));
+}
+async function modSubs(d){
+  const r = await smartFetch('https://crt.sh/?q=%25.'+encodeURIComponent(d)+'&output=json&exclude=expired');
+  if (r.status !== 200 || !Array.isArray(r.data)) throw new Error('crt.sh fail');
+  const subs = [...new Set(r.data.flatMap(c=>(c.name_value||'').split('\n').map(s=>s.trim().replace(/^\*\./,''))))].filter(s=>s.endsWith(d)).sort();
+  if (!subs.length) throw new Error('none');
+  return kv('Total', subs.length) + subs.slice(0,150).join('\n') + (subs.length>150 ? '\n...+'+(subs.length-150)+' more' : '');
+}
+async function modScrape(d){
+  const text = await smartText('https://'+d);
+  if (!text) throw new Error('fetch fail');
+  const title = (text.match(/<title[^>]*>([^<]*)<\/title>/i)||[])[1] || '—';
+  const emails = [...new Set((text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)||[]))].slice(0,15);
+  const socials = [...new Set((text.match(/https?:\/\/(?:www\.)?(facebook|instagram|twitter|x|linkedin|youtube|github|tiktok)\.com\/[a-zA-Z0-9_.\/-]+/gi)||[]))].slice(0,10);
+  const tech = [];
+  if (text.includes('wp-content')) tech.push('WordPress');
+  if (text.includes('__NEXT_DATA__')) tech.push('Next.js');
+  if (text.includes('Shopify')) tech.push('Shopify');
+  if (text.includes('cloudflare')) tech.push('Cloudflare');
+  return kv('Title', esc(title.trim())) + kv('Tech Hints', [...new Set(tech)].join(', ')||'—') +
+    kv('Emails', emails.length?'\n  '+emails.join('\n  '):'none') +
+    kv('Socials', socials.length?'\n  '+socials.join('\n  '):'none');
+}
+async function modWayback(d){
+  const [o,n] = await Promise.all([
+    smartFetch('https://web.archive.org/cdx/search/cdx?url='+d+'&output=json&fl=timestamp&limit=1'),
+    smartFetch('https://web.archive.org/cdx/search/cdx?url='+d+'&output=json&fl=timestamp&sort=reverse&limit=1')
+  ]);
+  if (o.status !== 200) throw new Error('archive fail');
+  const fmt = x => x?.data?.[1] ? x.data[1].replace(/(\d{4})(\d{2})(\d{2}).*/,'$1-$2-$3') : '—';
+  return kv('Oldest', fmt(o)) + kv('Newest', fmt(n)) + '\n<a href="https://web.archive.org/web/*/'+d+'" target="_blank">Timeline ↗</a>';
+}
+async function modShodanViaDomain(d){
+  const r = await fetch('https://dns.google/resolve?name='+encodeURIComponent(d)+'&type=A');
+  const j = await r.json();
+  const ip = j.Answer?.find(a=>a.type===1)?.data;
+  if (!ip) throw new Error('no A record');
+  const s = await smartFetch('https://internetdb.shodan.io/'+ip);
+  if (s.status !== 200) return kv('IP', ip) + 'Shodan DB mein entry nahi (achhi baat).';
+  const dd = s.data;
+  return kv('Resolved IP', ip) + kv('Open Ports', dd.ports?.join(', ')||'none') + kv('CVEs', dd.vulns?.join(', ')||'none');
+}
+const disposable = ['mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com','throwawaymail.com','sharklasers.com','getnada.com','dispostable.com','yopmail.com','trashmail.com','fakeinbox.com','tempinbox.com','maildrop.cc','mohmal.com','emailondeck.com','tempr.email','1secmail.com'];
+async function modEmail(email){
+  email = email.toLowerCase();
+  const [user, domain] = email.split('@');
+  const hash = md5(email);
+  const g = await new Promise(res => { const img=new Image(); img.onload=()=>res(true); img.onerror=()=>res(false); img.src='https://www.gravatar.com/avatar/'+hash+'?d=404&s=80'; });
+  let mx = null;
+  try { const r = await fetch('https://dns.google/resolve?name='+domain+'&type=MX'); const j = await r.json(); mx = j.Answer?.[0]?.data || null; } catch(e){}
+  return kv('Email', email) + kv('MD5', hash) +
+    kv('Gravatar', g ? 'FOUND ✓' : 'not found') +
+    kv('MX', mx || 'NONE — email invalid/dead') +
+    kv('Disposable?', disposable.includes(domain) ? 'YES ⚠' : 'no') +
+    '\n<a href="https://epieos.com/?q='+encodeURIComponent(email)+'" target="_blank">Epieos deep-check ↗</a> | <a href="https://haveibeenpwned.com/" target="_blank">HIBP breaches ↗</a>';
+}
+async function modEmailInfra(domain){
+  const q = async name => { const r = await fetch('https://dns.google/resolve?name='+encodeURIComponent(name)+'&type=TXT'); return (await r.json()).Answer||[]; };
+  const mxR = await fetch('https://dns.google/resolve?name='+encodeURIComponent(domain)+'&type=MX').then(r=>r.json()).catch(()=>({}));
+  const mx = mxR.Answer||[];
+  const txt = await q(domain);
+  const spf = txt.filter(a=>a.data.includes('v=spf1')).map(a=>a.data);
+  const dm = await fetch('https://dns.google/resolve?name=_dmarc.'+domain+'&type=TXT').then(r=>r.json()).catch(()=>({}));
+  return kv('MX', mx.map(a=>a.data).join(' | ')||'none') +
+    kv('SPF', spf.join(' | ')||'none') +
+    kv('DMARC', dm.Answer?.[0]?.data||'none');
+}
+async function modGithub(u){
+  const r = await smartFetch('https://api.github.com/users/'+encodeURIComponent(u));
+  if (r.status !== 200) throw new Error('not found');
+  const d = r.data;
+  return kv('Login', d.login) + kv('Name', d.name) + kv('Bio', d.bio) + kv('Location', d.location) +
+    kv('Email', d.email) + kv('Company', d.company) + kv('Repos', d.public_repos) +
+    kv('Followers', d.followers) + kv('Created', d.created_at?.slice(0,10)) +
+    '\n<a href="'+d.html_url+'" target="_blank">Profile ↗</a>';
+}
+async function modUsername(u){
+  const auto = huntList.filter(p=>p.api);   // saare API platforms (pehle sirf 8 the)
+  const lines=[], audit=[];
+  for (const p of auto){
+    let st='unknown';
+    try {
+      const r = await smartFetch(p.api.replace('{}', u), {json: p.fn==='json'});
+      if (r.status === 200){
+        if (p.n === 'GitLab') st = Array.isArray(r.data) && r.data.length ? 'found' : 'none';
+        else if (p.n === 'HackerNews') st = (r.data && typeof r.data==='object' && Object.keys(r.data).length) ? 'found' : 'none';
+        else if (p.fn === 'html') st = String(r.text||'').toLowerCase().includes(u.toLowerCase()) ? 'found' : 'none';
+        else st = 'found';
+      } else if (r.status === 404) st = 'none';
+      else st = 'blocked ('+r.status+')';
+    } catch(e){ st='error'; }
+    audit.push(p.n+': '+(st==='found'?'FOUND ✓':st==='none'?'not found':st));
+    if (st === 'found') lines.push('✓ '+p.n+': '+p.u.replace('{}', u));
+    await new Promise(r2=>setTimeout(r2,180));
+  }
+  const others = huntList.filter(p=>!p.api).slice(0,20).map(p=>'<a href="'+p.u.replace('{}',encodeURIComponent(u))+'" target="_blank">'+esc(p.n)+' ↗</a>').join('');
+  const head = lines.length
+    ? '✓ '+lines.length+' platform par account mila:\n'+lines.join('\n')
+    : 'Koi auto-match nahi mila. Neeche kaunsi APIs check hui, unka status:\n'+audit.join('\n');
+  return head+'\n\n⚠ Instagram / Facebook / LinkedIn / X jaise platforms bots ko block karte hain — unke liye automated check allowed nahi hai, isliye manual links diye gaye hain:\n\n'+
+    '<span style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:5px">'+others+'</span>';
+}
+const ccMap = {'+1':'North America','+7':'Russia/Kazakhstan','+20':'Egypt','+27':'South Africa','+31':'Netherlands','+33':'France','+34':'Spain','+39':'Italy','+44':'UK','+49':'Germany','+61':'Australia','+62':'Indonesia','+63':'Philippines','+64':'New Zealand','+65':'Singapore','+66':'Thailand','+81':'Japan','+82':'South Korea','+84':'Vietnam','+86':'China','+90':'Turkey','+91':'India','+92':'Pakistan','+93':'Afghanistan','+94':'Sri Lanka','+95':'Myanmar','+98':'Iran','+212':'Morocco','+234':'Nigeria','+254':'Kenya','+880':'Bangladesh','+971':'UAE','+966':'Saudi Arabia','+974':'Qatar','+973':'Bahrain','+965':'Kuwait','+855':'Cambodia','+998':'Uzbekistan','+380':'Ukraine','+48':'Poland','+55':'Brazil','+52':'Mexico','+54':'Argentina','+57':'Colombia'};
+async function modPhone(p){
+  let n = p.replace(/[^\d+]/g,''); if(!n.startsWith('+')) n = '+'+n;
+  let country = 'Unknown', code='—';
+  for (const c of Object.keys(ccMap).sort((a,b)=>b.length-a.length)){ if (n.startsWith(c)){ country=ccMap[c]; code=c; break; } }
+  const national = code==='—' ? n.replace(/^\+/,'') : n.slice(code.length);
+  return kv('Number (E.164)', n) + kv('Country Code', code) + kv('Country (likely)', country) +
+    kv('National Number', national) +
+    '\nOSINT checks:\n• <a href="https://www.truecaller.com/search" target="_blank">Truecaller ↗</a>\n• <a href="https://sync.me/" target="_blank">Sync.me ↗</a>\n• <a href="https://www.google.com/search?q=%22'+encodeURIComponent(n)+'%22" target="_blank">Google exact search ↗</a>';
+}
+async function modPeople(name){
+  const eq = encodeURIComponent(name);
+  const links = [['Google','https://www.google.com/search?q=%22'+eq+'%22'],['LinkedIn','https://www.linkedin.com/search/results/people/?keywords='+eq],['Facebook','https://www.facebook.com/search/people/?q='+eq],['X','https://x.com/search?q='+eq],['WebMii','https://webmii.com/people?n='+eq],['Yandex','https://yandex.com/search/?text='+eq],['Wikipedia','https://en.wikipedia.org/wiki/Special:Search?search='+eq]];
+  return '<span style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:5px">'+links.map(([n,u])=>'<a href="'+u+'" target="_blank">'+n+' ↗</a>').join('')+'</span>';
+}
+async function modWebSearch(q){
+  const eq = encodeURIComponent('"'+q+'"');
+  return 'Exact-match web search links:\n<a href="https://www.google.com/search?q='+eq+'" target="_blank">Google ↗</a> | <a href="https://duckduckgo.com/?q='+eq+'" target="_blank">DDG ↗</a> | <a href="https://yandex.com/search/?text='+eq+'" target="_blank">Yandex ↗</a> | <a href="https://www.bing.com/search?q='+eq+'" target="_blank">Bing ↗</a>';
+}
+async function modBtc(a){
+  const r = await smartFetch('https://blockstream.info/api/address/'+encodeURIComponent(a));
+  if (r.status !== 200) throw new Error('fail');
+  const d = r.data;
+  const s = v => (v/1e8).toFixed(8)+' BTC';
+  return kv('Address', a) +
+    kv('Balance', s((d.chain_stats?.funded_txo_sum||0)-(d.chain_stats?.spent_txo_sum||0))) +
+    kv('Total Received', s(d.chain_stats?.funded_txo_sum||0)) +
+    kv('Transactions', d.chain_stats?.tx_count||0);
+}
+async function modEth(a){
+  const r = await smartFetch('https://api.blockchair.com/ethereum/dashboards/address/'+encodeURIComponent(a));
+  if (r.status !== 200 || !r.data?.data?.[a.toLowerCase()]) throw new Error('fail');
+  const d = r.data.data[a.toLowerCase()].address;
+  return kv('Address', a) + kv('Balance', (Number(d.balance)/1e18).toFixed(6)+' ETH') + kv('Transactions', d.transaction_count?.count || d.transaction_count || '—');
+}
+
+/* ============================================================
+   INDIVIDUAL MODULE CARDS (tabs)
+============================================================ */
+let map=null, marker=null;
+async function lookupIP(){
+  const ip = $('ipInput').value.trim();
+  spin('ipResult');
+  try{
+    const r = await fetch('https://ipwho.is/' + (ip ? encodeURIComponent(ip) : ''));
+    const d = await r.json();
+    if (d.success === false){ err('ipResult', d.message || 'Invalid IP'); return; }
+    show('ipResult',
+      kv('IP', d.ip) + kv('Type', d.type) + kv('Country', d.country+' ('+d.country_code+')') +
+      kv('Region', d.region) + kv('City', d.city) + kv('Postal', d.postal) +
+      kv('Coordinates', d.latitude+', '+d.longitude) +
+      kv('ISP', d.connection?.isp) + kv('Org', d.connection?.org) + kv('ASN', d.connection?.asn) +
+      kv('Timezone', d.timezone?.id) + kv('Flag', d.flag?.emoji)
+    );
+    const mapEl = $('ipMap'); mapEl.style.display='block';
+    if (!map){ map = L.map('ipMap'); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map); }
+    map.setView([d.latitude, d.longitude], 10);
+    if (marker) map.removeLayer(marker);
+    marker = L.marker([d.latitude, d.longitude]).addTo(map).bindPopup(d.ip+' — '+d.city+', '+d.country).openPopup();
+    setTimeout(()=>map.invalidateSize(), 50);
+  } catch(e){ err('ipResult','Lookup fail: '+e.message); }
+}
+enterKey('ipInput', lookupIP);
+
+/* ---------- EXIF GPS Extractor ---------- */
+let exifMap=null, exifMarker=null;
+$('exifInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  spin('exifResult');
+  try {
+    const data = await exifr.parse(file, {gps: true});
+    if (!data || (data.latitude === undefined && data.longitude === undefined)){
+      show('exifResult', '<span class="err">✗ GPS data nahi mila.</span>\n\nIs photo mein EXIF GPS saved nahi hai.\n\nNote: WhatsApp, Telegram, Instagram jaise apps metadata strip kar dete hain — sirf original file (camera se direct / email se) mein GPS hota hai.\n\nAur EXIF dekhne ke liye: <a href="https://exif.tools/" target="_blank">exif.tools ↗</a>');
+      return;
+    }
+    const lat = data.latitude, lon = data.longitude;
+    const when = data.DateTimeOriginal || data.CreateDate;
+    const cam = [data.Make, data.Model].filter(Boolean).join(' ');
+    const out = kv('Latitude', lat) + kv('Longitude', lon) +
+      '<a href="https://www.google.com/maps?q='+lat+','+lon+'" target="_blank">📍 Google Maps par kholen ↗</a>\n' +
+      (cam ? kv('Camera', cam) : '') +
+      (when ? kv('Photo Taken', new Date(when).toLocaleString()) : '') +
+      kv('Software', data.Software || '—') +
+      '\nGeo-OSINT:\n<a href="https://www.suncalc.org/#/'+lat+','+lon+',15" target="_blank">SunCalc (time→light analysis) ↗</a> | <a href="https://earth.google.com/web/@'+lat+','+lon+',1000d" target="_blank">Google Earth ↗</a>';
+    show('exifResult', out);
+    const mapEl = $('exifMap'); mapEl.style.display='block';
+    if (!exifMap){ exifMap = L.map('exifMap'); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(exifMap); }
+    exifMap.setView([lat, lon], 15);
+    if (exifMarker) exifMap.removeLayer(exifMarker);
+    exifMarker = L.marker([lat, lon]).addTo(exifMap).bindPopup('📷 Photo location').openPopup();
+    setTimeout(()=>exifMap.invalidateSize(), 50);
+  } catch(err2){
+    err('exifResult', 'EXIF parse fail: ' + err2.message);
+  }
+});
+
+/* ---------- Deep IP Location (Multi-API Triangulation) ---------- */
+let triMap=null, triLayer=null;
+async function deepIPLoc(){
+  const ip = $('triInput').value.trim();
+  spin('triResult');
+  const grab = async (url, map) => {
+    try { const r = await smartFetch(url); if (r.status !== 200) return null; return map(r.data); } catch(e){ return null; }
+  };
+  const sources = await Promise.all([
+    grab('https://ipwho.is/'+(ip?encodeURIComponent(ip):''), d => d.success===false?null:{src:'ipwho.is', lat:d.latitude, lon:d.longitude, city:d.city, region:d.region, country:d.country}),
+    grab('https://ipapi.co/'+(ip?encodeURIComponent(ip):'')+'/json/', d => d.error?null:{src:'ipapi.co', lat:d.latitude, lon:d.longitude, city:d.city, region:d.region, country:d.country_name}),
+    grab('https://get.geojs.io/v1/ip/geo.json'+(ip?'?ip='+encodeURIComponent(ip):''), d => ({src:'geojs.io', lat:parseFloat(d.latitude), lon:parseFloat(d.longitude), city:d.city, region:d.region, country:d.country})),
+    grab('https://freeipapi.com/api/json'+(ip?'/'+encodeURIComponent(ip):''), d => ({src:'freeipapi', lat:d.latitude, lon:d.longitude, city:d.cityName, region:d.regionName, country:d.countryName}))
+  ]);
+  const valid = sources.filter(Boolean).filter(s=>isFinite(s.lat)&&isFinite(s.lon));
+  if (!valid.length){ err('triResult','Koi bhi geolocation source se data nahi mila'); return; }
+
+  /* centroid */
+  const clat = valid.reduce((a,s)=>a+s.lat,0)/valid.length;
+  const clon = valid.reduce((a,s)=>a+s.lon,0)/valid.length;
+  const hav = (a,b,c,d2) => { const R=6371, t=Math.PI/180, dLat=(c-a)*t, dLon=(d2-b)*t;
+    const x = Math.sin(dLat/2)**2 + Math.cos(a*t)*Math.cos(c*t)*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(x)); };
+  const dists = valid.map(s => ({...s, km: hav(clat, clon, s.lat, s.lon)}));
+  const radius = Math.max(...dists.map(d=>d.km));
+
+  let out = kv('IP', ip || 'auto-detected') + kv('Sources hit', valid.length+'/4') + '\n';
+  out += dists.map(d => '• '+d.src.padEnd(11)+' '+(d.city||'?')+', '+(d.region||'')+' ('+d.km.toFixed(1)+' km from center)').join('\n');
+  out += '\n\n' + kv('Confidence center', clat.toFixed(5)+', '+clon.toFixed(5)) +
+    kv('Confidence radius', radius.toFixed(1)+' km') +
+    (radius < 5 ? '\n<span class="k">Verdict: TIGHT — location kaafi reliable hai</span>' :
+     radius < 25 ? '\n<span class="k">Verdict: MODERATE — area-level estimate</span>' :
+     '\n<span class="err">Verdict: WIDE — sources disagree, sirf city-level trust karo</span>') +
+    '\n\n⚠️ IP location = ISP gateway ka area, exact ghar/street kabhi nahi.\n' +
+    '<a href="https://www.google.com/maps?q='+clat+','+clon+'" target="_blank">📍 Center Google Maps par ↗</a>';
+  show('triResult', out);
+
+  /* map */
+  const mapEl = $('triMap'); mapEl.style.display='block';
+  if (!triMap){ triMap = L.map('triMap'); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(triMap); }
+  if (triLayer) triMap.removeLayer(triLayer);
+  triLayer = L.layerGroup().addTo(triMap);
+  dists.forEach(d => L.marker([d.lat, d.lon]).addTo(triLayer).bindPopup(d.src+': '+(d.city||'?')));
+  L.circle([clat, clon], {radius: radius*1000, color:'#00e5a0', fillColor:'#00e5a0', fillOpacity:.12, weight:2}).addTo(triLayer)
+    .bindPopup('Confidence area: '+radius.toFixed(1)+' km radius');
+  L.circleMarker([clat, clon], {radius:6, color:'#00e5a0', fillOpacity:1}).addTo(triLayer);
+  triMap.setView([clat, clon], radius<10?13:radius<50?10:8);
+  setTimeout(()=>triMap.invalidateSize(), 50);
+}
+enterKey('triInput', deepIPLoc);
+
+async function lookupShodan(){
+  const ip = $('shodanInput').value.trim();
+  if(!ip){ err('shodanResult','IP enter karein'); return; }
+  spin('shodanResult');
+  const r = await smartFetch('https://internetdb.shodan.io/'+ip);
+  if (r.status === 404){ err('shodanResult','IP database mein nahi hai (open ports nahi)'); return; }
+  if (r.status === 'fail'){ err('shodanResult','Shodan InternetDB unreachable'); return; }
+  const d = r.data;
+  show('shodanResult',
+    kv('IP', d.ip) + kv('Open Ports', d.ports?.length ? d.ports.join(', ') : 'none') +
+    kv('Hostnames', d.hostnames?.join(', ') || '—') +
+    kv('Technologies', d.cpes?.join(', ') || '—') +
+    kv('CVEs', d.vulns?.length ? d.vulns.join(', ') : 'none') +
+    '\n<a href="https://www.shodan.io/host/'+d.ip+'" target="_blank">→ Full Shodan report</a>'
+  );
+}
+enterKey('shodanInput', lookupShodan);
+
+async function myInfo(){
+  spin('myInfoResult');
+  let out = '';
+  try { const r = await fetch('https://ipwho.is/'); const d = await r.json();
+    out += kv('Public IP', d.ip) + kv('ISP', d.connection?.isp) + kv('Location', d.city+', '+d.country); } catch(e){}
+  show('myInfoResult', out + '<span class="spin"></span> WebRTC check...');
+  try {
+    const pc = new RTCPeerConnection({iceServers:[]});
+    pc.createDataChannel('');
+    const localIPs = new Set();
+    pc.onicecandidate = e => {
+      if (e.candidate){ const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/); if(m && !m[1].match(/^127\./)) localIPs.add(m[1]); }
+      else { pc.close(); out += kv('Local IPs (WebRTC)', [...localIPs].join(', ')||'none'); show('myInfoResult', out); }
+    };
+    pc.createOffer().then(o => pc.setLocalDescription(o));
+  } catch(e){ show('myInfoResult', out); }
+}
+
+let dnsType='A';
+document.querySelectorAll('#dnsTypes .chip').forEach(c => c.onclick = () => {
+  document.querySelectorAll('#dnsTypes .chip').forEach(x=>x.classList.remove('active'));
+  c.classList.add('active'); dnsType = c.textContent;
+  if ($('dnsInput').value.trim()) lookupDNS();
+});
+async function lookupDNS(){
+  const domain = $('dnsInput').value.trim();
+  if(!domain){ err('dnsResult','Domain enter karein'); return; }
+  spin('dnsResult');
+  try{
+    const r = await fetch('https://dns.google/resolve?name='+encodeURIComponent(domain)+'&type='+dnsType);
+    const d = await r.json();
+    let out = kv('Domain', domain) + kv('Record Type', dnsType) + '\n';
+    out += (d.Answer?.length) ? d.Answer.map(a=>a.name+' → '+a.data+' (TTL '+a.TTL+')').join('\n') : 'Koi '+dnsType+' record nahi mila.';
+    show('dnsResult', out);
+  } catch(e){ err('dnsResult','Query fail: '+e.message); }
+}
+enterKey('dnsInput', lookupDNS);
+
+async function lookupRDAP(){
+  const domain = $('rdapInput').value.trim();
+  if(!domain){ err('rdapResult','Domain enter karein'); return; }
+  spin('rdapResult');
+  const r = await smartFetch('https://rdap.org/domain/'+encodeURIComponent(domain));
+  if (r.status === 404){ err('rdapResult','Domain registered nahi hai'); return; }
+  if (r.status === 'fail'){ err('rdapResult','RDAP unreachable'); return; }
+  const d = r.data;
+  const ev = {}; (d.events||[]).forEach(e => ev[e.eventAction]=e.eventDate);
+  const registrar = (d.entities||[]).find(e => (e.roles||[]).includes('registrar'));
+  show('rdapResult',
+    kv('Domain', d.ldhName) + kv('Registrar', registrar?.vcardName || registrar?.handle || '—') +
+    kv('Registered', ev['registration'] && new Date(ev['registration']).toDateString()) +
+    kv('Expires', ev['expiration'] && new Date(ev['expiration']).toDateString()) +
+    kv('Nameservers', (d.nameservers||[]).map(n=>n.ldhName).join(', ')) +
+    kv('Status', (d.status||[]).join(', '))
+  );
+}
+enterKey('rdapInput', lookupRDAP);
+
+async function findSubs(){
+  const domain = $('subInput').value.trim().toLowerCase();
+  if(!domain){ err('subResult','Domain enter karein'); return; }
+  spin('subResult');
+  const r = await smartFetch('https://crt.sh/?q=%25.'+encodeURIComponent(domain)+'&output=json&exclude=expired');
+  if (r.status !== 200 || !Array.isArray(r.data)){ err('subResult','crt.sh se data nahi mila — <a href="https://crt.sh/?q=%25.'+domain+'" target="_blank">manual try</a>'); return; }
+  const subs = [...new Set(r.data.flatMap(c => (c.name_value||'').split('\n').map(s=>s.trim().replace(/^\*\./,''))))].filter(s=>s.endsWith(domain)).sort();
+  if (!subs.length){ err('subResult','Koi subdomain nahi mila'); return; }
+  show('subResult', kv('Total subdomains', subs.length) + subs.slice(0,300).join('\n') + (subs.length>300?'\n...+'+(subs.length-300)+' more':''));
+}
+enterKey('subInput', findSubs);
+
+async function scrapeSite(){
+  let url = $('scrapeInput').value.trim();
+  if(!url){ err('scrapeResult','URL enter karein'); return; }
+  if(!/^https?:\/\//.test(url)) url = 'https://'+url;
+  spin('scrapeResult');
+  const html = await smartText(url);
+  if (!html){ err('scrapeResult','Page fetch nahi hua'); return; }
+  const title = (html.match(/<title[^>]*>([^<]*)<\/title>/i)||[])[1] || '—';
+  const desc = (html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i)||[])[1] || '—';
+  const emails = [...new Set((html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)||[]))].slice(0,20);
+  const socials = [...new Set((html.match(/https?:\/\/(?:www\.)?(facebook\.com|instagram\.com|twitter\.com|x\.com|linkedin\.com|youtube\.com|github\.com|tiktok\.com)\/[a-zA-Z0-9_.\/-]+/gi)||[]))].slice(0,15);
+  const tech = [];
+  if (html.includes('wp-content')) tech.push('WordPress');
+  if (html.includes('__NEXT_DATA__')) tech.push('Next.js');
+  if (html.includes('Shopify')) tech.push('Shopify');
+  if (html.includes('cloudflare')) tech.push('Cloudflare');
+  if (html.includes('googletagmanager')||html.includes('google-analytics')) tech.push('Google Analytics');
+  show('scrapeResult',
+    kv('URL', url) + kv('Title', esc(title.trim())) + kv('Description', esc(desc.trim()).slice(0,200)) +
+    kv('Tech Hints', [...new Set(tech)].join(', ') || '—') +
+    kv('Emails found', emails.length ? '\n  '+emails.join('\n  ') : 'none') +
+    kv('Social links', socials.length ? '\n  '+socials.join('\n  ') : 'none')
+  );
+}
+enterKey('scrapeInput', scrapeSite);
+
+async function lookupWayback(){
+  const domain = $('waybackInput').value.trim();
+  if(!domain){ err('waybackResult','Domain enter karein'); return; }
+  spin('waybackResult');
+  const [o,n] = await Promise.all([
+    smartFetch('https://web.archive.org/cdx/search/cdx?url='+domain+'&output=json&fl=timestamp&limit=1'),
+    smartFetch('https://web.archive.org/cdx/search/cdx?url='+domain+'&output=json&fl=timestamp&sort=reverse&limit=1')
+  ]);
+  if (o.status !== 200){ err('waybackResult','Archive data nahi mila'); return; }
+  const fmt = x => x?.data?.[1] ? x.data[1].replace(/(\d{4})(\d{2})(\d{2}).*/,'$1-$2-$3') : '—';
+  show('waybackResult', kv('Domain', domain) + kv('Oldest snapshot', fmt(o)) + kv('Newest snapshot', fmt(n)) +
+    '\n<a href="https://web.archive.org/web/*/'+domain+'" target="_blank">→ Full timeline</a>');
+}
+enterKey('waybackInput', lookupWayback);
+
+function domainLinks(){
+  const d = $('dlInput').value.trim().toLowerCase().replace(/^https?:\/\//,'').split('/')[0];
+  const box = $('domainLinksBox');
+  if(!d){ box.innerHTML=''; return; }
+  const links = [['Shodan','https://www.shodan.io/search?query=hostname:'+d],['crt.sh','https://crt.sh/?q=%25.'+d],['VirusTotal','https://www.virustotal.com/gui/domain/'+d],['urlscan.io','https://urlscan.io/domain/'+d],['Wayback','https://web.archive.org/web/*/'+d],['ViewDNS','https://viewdns.info/reversewhois/?q='+d],['BuiltWith','https://builtwith.com/'+d],['Netcraft','https://sitereport.netcraft.com/?url='+d],['who.is','https://who.is/whois/'+d],['SecurityHeaders','https://securityheaders.com/?q='+d],['SSL Labs','https://www.ssllabs.com/ssltest/analyze.html?d='+d],['Google','https://www.google.com/search?q=site:'+d]];
+  box.innerHTML = links.map(([n,u])=>'<a href="'+u+'" target="_blank">'+n+' <span>↗</span></a>').join('');
+}
+enterKey('dlInput', domainLinks);
+
+async function lookupEmail(){
+  const email = $('emailInput').value.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err('emailResult','Valid email enter karein'); return; }
+  spin('emailResult');
+  const [user, domain] = email.split('@');
+  const hash = md5(email);
+  const exists = await new Promise(res => { const img=new Image(); img.onload=()=>res(true); img.onerror=()=>res(false); img.src='https://www.gravatar.com/avatar/'+hash+'?d=404&s=80'; });
+  let mx = null;
+  try { const r = await fetch('https://dns.google/resolve?name='+domain+'&type=MX'); const j = await r.json(); mx = j.Answer?.[0]?.data || null; } catch(e){}
+  show('emailResult',
+    kv('Email', email) + kv('MD5 Hash', hash) +
+    kv('Gravatar', exists ? 'FOUND ✓' : 'Not found') +
+    kv('MX Record', mx || 'NONE — email receive nahi kar sakta') +
+    kv('Disposable?', disposable.includes(domain) ? 'YES ⚠' : 'No') +
+    '\n<a href="https://epieos.com/?q='+encodeURIComponent(email)+'" target="_blank">Epieos ↗</a> | <a href="https://haveibeenpwned.com/" target="_blank">HIBP ↗</a> | <a href="https://hunter.io/email-verifier" target="_blank">Hunter.io ↗</a>'
+  );
+}
+enterKey('emailInput', lookupEmail);
+
+async function emailRecon(){
+  const domain = $('mailDomInput').value.trim().toLowerCase();
+  if(!domain){ err('emailReconResult','Domain enter karein'); return; }
+  spin('emailReconResult');
+  const q = async ty => { const r = await fetch('https://dns.google/resolve?name='+domain+'&type='+ty); return (await r.json()).Answer||[]; };
+  const [mx, txt] = await Promise.all([q('MX'), q('TXT')]);
+  const spf = txt.filter(a=>a.data.includes('v=spf1')).map(a=>a.data);
+  const dm = await fetch('https://dns.google/resolve?name=_dmarc.'+domain+'&type=TXT').then(r=>r.json()).catch(()=>({}));
+  show('emailReconResult',
+    kv('Domain', domain) +
+    kv('MX', mx.map(a=>a.data).join('\n  ') || 'none') +
+    kv('SPF', spf.join('\n  ') || 'no SPF record') +
+    kv('DMARC', dm.Answer?.[0]?.data || 'no DMARC record')
+  );
+}
+enterKey('mailDomInput', emailRecon);
+
+/* ---------- Username hunter ---------- */
+const huntList = [
+  {n:'GitHub', u:'https://github.com/{}', api:'https://api.github.com/users/{}', fn:'json'},
+  {n:'GitLab', u:'https://gitlab.com/{}', api:'https://gitlab.com/api/v4/users?username={}', fn:'json'},
+  {n:'Mastodon', u:'https://mastodon.social/@{}', api:'https://mastodon.social/api/v1/accounts/lookup?acct={}', fn:'json'},
+  {n:'HackerNews', u:'https://news.ycombinator.com/user?id={}', api:'https://hacker-news.firebaseio.com/v0/user/{}.json', fn:'json'},
+  {n:'Chess.com', u:'https://www.chess.com/member/{}', api:'https://api.chess.com/pub/player/{}', fn:'json'},
+  {n:'Reddit', u:'https://www.reddit.com/user/{}', api:'https://www.reddit.com/user/{}/about.json', fn:'json'},
+  {n:'Keybase', u:'https://keybase.io/{}', api:'https://keybase.io/{}/key_status.json', fn:'json'},
+  {n:'Dev.to', u:'https://dev.to/{}', api:'https://dev.to/api/users/by_username?url={}', fn:'json'},
+  {n:'Codewars', u:'https://www.codewars.com/users/{}', api:'https://www.codewars.com/api/v1/users/{}', fn:'json'},
+  {n:'npm', u:'https://www.npmjs.com/~{}', api:'https://www.npmjs.com/~{}', fn:'html'},
+  {n:'PyPI', u:'https://pypi.org/user/{}', api:'https://pypi.org/user/{}', fn:'html'},
+  {n:'X / Twitter', u:'https://x.com/{}'}, {n:'Instagram', u:'https://www.instagram.com/{}/'},
+  {n:'TikTok', u:'https://www.tiktok.com/@{}'}, {n:'YouTube', u:'https://www.youtube.com/@{}'},
+  {n:'Facebook', u:'https://www.facebook.com/{}'}, {n:'LinkedIn', u:'https://www.linkedin.com/in/{}'},
+  {n:'Telegram', u:'https://t.me/{}'}, {n:'Pinterest', u:'https://www.pinterest.com/{}/'},
+  {n:'Medium', u:'https://medium.com/@{}'}, {n:'Dev.to', u:'https://dev.to/{}'},
+  {n:'Behance', u:'https://www.behance.net/{}'}, {n:'Dribbble', u:'https://dribbble.com/{}'},
+  {n:'SoundCloud', u:'https://soundcloud.com/{}'}, {n:'Spotify', u:'https://open.spotify.com/user/{}'},
+  {n:'Steam', u:'https://steamcommunity.com/id/{}'}, {n:'Flickr', u:'https://www.flickr.com/people/{}'},
+  {n:'Vimeo', u:'https://vimeo.com/{}'}, {n:'Patreon', u:'https://www.patreon.com/{}'},
+  {n:'Ko-fi', u:'https://ko-fi.com/{}'}, {n:'Bitbucket', u:'https://bitbucket.org/{}/'},
+  {n:'Bluesky', u:'https://bsky.app/profile/{}.bsky.social'}, {n:'Tumblr', u:'https://{}.tumblr.com/'},
+  {n:'Wordpress', u:'https://{}.wordpress.com/'}, {n:'StackOverflow', u:'https://stackoverflow.com/users?tab=Reputation&search={}'},
+  {n:'Imgur', u:'https://imgur.com/user/{}'}, {n:'Goodreads', u:'https://www.goodreads.com/{}'},
+  {n:'Last.fm', u:'https://www.last.fm/user/{}'}, {n:'Trakt', u:'https://trakt.tv/users/{}'},
+  {n:'Foursquare', u:'https://foursquare.com/{}'}, {n:'Slideshare', u:'https://www.slideshare.net/{}'},
+  {n:'Gravatar', u:'https://gravatar.com/{}'}, {n:'Codewars', u:'https://www.codewars.com/users/{}'},
+  {n:'Twitch', u:'https://www.twitch.tv/{}'}, {n:'Roblox', u:'https://www.roblox.com/search/users?keyword={}'},
+  {n:'Freelancer', u:'https://www.freelancer.com/u/{}'}, {n:'Wattpad', u:'https://www.wattpad.com/user/{}'},
+  {n:'Duolingo', u:'https://www.duolingo.com/profile/{}'}, {n:'Mixcloud', u:'https://www.mixcloud.com/{}/'}
+];
+let huntStop = false;
+function stopHunt(){ huntStop = true; }
+async function huntUser(){
+  const u = $('userInput').value.trim().replace(/\s+/g,'');
+  const box = $('userLinks');
+  if(!u){ box.innerHTML=''; return; }
+  box.innerHTML = huntList.map((p,i) =>
+    '<a href="'+p.u.replace('{}',encodeURIComponent(u))+'" target="_blank" id="hp'+i+'">'+esc(p.n)+' <span class="status s-none">…</span></a>'
+  ).join('');
+  huntStop = false;
+  for (let i=0; i<huntList.length; i++){
+    if (huntStop) break;
+    const p = huntList[i];
+    if (!p.api) continue;
+    const el = $('hp'+i);
+    const badge = el?.querySelector('.status');
+    let status = null;
+    try {
+      const r = await smartFetch(p.api.replace('{}', u), {json: p.fn==='json'});
+      if (r.status === 200){
+        if (p.n === 'GitLab') status = Array.isArray(r.data) && r.data.length ? 'found' : 'none';
+        else status = 'found';
+      } else if (r.status === 404) status = 'none';
+    } catch(e){}
+    if (badge){
+      if (status === 'found'){ badge.className='status s-found'; badge.textContent='FOUND'; el.style.borderColor='var(--accent)'; el.style.color='var(--accent)'; }
+      else if (status === 'none'){ badge.textContent='no'; }
+      else { badge.className='status s-manual'; badge.textContent='↗'; }
+    }
+    await new Promise(r => setTimeout(r, 300));
+  }
+  document.querySelectorAll('#userLinks .status.s-none').forEach(b => { b.className='status s-manual'; b.textContent='↗'; });
+}
+enterKey('userInput', huntUser);
+
+async function lookupGH(){
+  const u = $('ghInput').value.trim();
+  if(!u){ err('ghResult','Username enter karein'); return; }
+  spin('ghResult');
+  try{
+    const r = await fetch('https://api.github.com/users/'+encodeURIComponent(u));
+    if (r.status === 404){ err('ghResult','User nahi mila'); return; }
+    const d = await r.json();
+    const r2 = await fetch('https://api.github.com/users/'+encodeURIComponent(u)+'/repos?per_page=5&sort=updated');
+    const repos = await r2.json();
+    let out = kv('Login', d.login) + kv('Name', d.name) + kv('Bio', d.bio) +
+      kv('Company', d.company) + kv('Location', d.location) + kv('Email', d.email) +
+      kv('Blog', d.blog) + kv('Twitter', d.twitter_username) +
+      kv('Public Repos', d.public_repos) + kv('Gists', d.public_gists) +
+      kv('Followers', d.followers) + kv('Created', d.created_at && new Date(d.created_at).toDateString()) + '\n';
+    if (repos?.length) out += '\nRecent repos:\n' + repos.map(x=>'• '+x.name+' — '+(x.description||'').slice(0,60)+' ('+x.stargazers_count+'★)').join('\n');
+    out += '\n\n<a href="'+d.html_url+'" target="_blank">→ Profile</a> | <a href="https://api.github.com/users/'+u+'/events/public" target="_blank">→ Activity feed</a>';
+    show('ghResult', out);
+  } catch(e){ err('ghResult','Lookup fail: '+e.message); }
+}
+enterKey('ghInput', lookupGH);
+
+function peopleLinks(){
+  const q = $('nameInput').value.trim();
+  const box = $('peopleLinksBox');
+  if(!q){ box.innerHTML=''; return; }
+  const eq = encodeURIComponent(q);
+  const links = [['Google','https://www.google.com/search?q=%22'+eq+'%22'],['DuckDuckGo','https://duckduckgo.com/?q=%22'+eq+'%22'],['Bing','https://www.bing.com/search?q=%22'+eq+'%22'],['LinkedIn','https://www.linkedin.com/search/results/people/?keywords='+eq],['Facebook','https://www.facebook.com/search/people/?q='+eq],['X / Twitter','https://x.com/search?q='+eq],['YouTube','https://www.youtube.com/results?search_query='+eq],['Reddit','https://www.reddit.com/search/?q='+eq],['WebMii','https://webmii.com/people?n='+eq],['Thatsthem','https://thatsthem.com/name/'+eq.replace(/%20/g,'-')],['Yandex','https://yandex.com/search/?text='+eq],['Wikipedia','https://en.wikipedia.org/wiki/Special:Search?search='+eq]];
+  box.innerHTML = links.map(([n,u])=>'<a href="'+u+'" target="_blank">'+n+' <span>↗</span></a>').join('');
+}
+enterKey('nameInput', peopleLinks);
+
+/* ---------- Phone ---------- */
+const cc = ccMap;
+$('ccRef').innerHTML = Object.entries(cc).map(([c,n])=>kv(c,n)).join('');
+function analyzePhone(){
+  let p = $('phoneInput').value.replace(/[^\d+]/g,'');
+  if(!p){ err('phoneResult','Number enter karein'); return; }
+  if(!p.startsWith('+')) p = '+'+p;
+  let country = 'Unknown', matched = null;
+  for (const code of Object.keys(cc).sort((a,b)=>b.length-a.length)){
+    if (p.startsWith(code)){ country = cc[code]; matched = code; break; }
+  }
+  /* Blind 3-digit lene se +918 jaise galat codes bante hain —
+     sirf known code list se match karo, baqi national number hai. */
+  if (!matched) matched = p.match(/^\+\d{1,3}/)?.[0] || '—';
+  const national = p.slice(matched.length);
+  let validity = 'format check unavailable';
+  if (matched === '+91') validity = /^[6-9]\d{9}$/.test(national) ? '✓ valid Indian mobile' : '⚠ invalid Indian mobile (10 digits, 6-9 se start)';
+  else if (/^\+\d{1,3}$/.test(matched)) validity = /^\d{6,14}$/.test(national) ? '✓ plausible length' : '⚠ unusual length';
+  show('phoneResult',
+    kv('Input', p) + kv('Country Code', matched) + kv('Country (likely)', country) +
+    kv('National Number', national) + kv('E.164 Format', p) + kv('Validity', validity) +
+    '\nOSINT checks:\n• <a href="https://www.truecaller.com/search" target="_blank">Truecaller ↗</a>\n• <a href="https://sync.me/" target="_blank">Sync.me ↗</a>\n• <a href="https://phoneinfoga.crvx.fr/" target="_blank">PhoneInfoga (CLI) ↗</a>\n• <a href="https://www.google.com/search?q=%22'+encodeURIComponent(p)+'%22" target="_blank">Google exact-match ↗</a>'
+  );
+}
+enterKey('phoneInput', analyzePhone);
+
+/* ---------- Crypto ---------- */
+async function lookupBTC(){
+  const a = $('btcInput').value.trim();
+  if(!a){ err('btcResult','BTC address enter karein'); return; }
+  spin('btcResult');
+  const r = await smartFetch('https://blockstream.info/api/address/'+encodeURIComponent(a));
+  if (r.status !== 200){ err('btcResult','Lookup fail — valid BTC address check karein'); return; }
+  const d = r.data;
+  const sats = v => (v/1e8).toFixed(8)+' BTC';
+  show('btcResult',
+    kv('Address', a) + kv('Balance', sats((d.chain_stats?.funded_txo_sum||0)-(d.chain_stats?.spent_txo_sum||0))) +
+    kv('Total Received', sats(d.chain_stats?.funded_txo_sum||0)) +
+    kv('Total Sent', sats(d.chain_stats?.spent_txo_sum||0)) +
+    kv('Transactions', d.chain_stats?.tx_count||0) +
+    '\n<a href="https://blockstream.info/address/'+a+'" target="_blank">→ Explorer</a> | <a href="https://oxt.me/address/'+a+'" target="_blank">→ OXT clustering</a>'
+  );
+}
+enterKey('btcInput', lookupBTC);
+
+async function lookupETH(){
+  const a = $('ethInput').value.trim();
+  if(!/^0x[a-fA-F0-9]{40}$/.test(a)){ err('ethResult','Valid ETH address enter karein (0x + 40 hex)'); return; }
+  spin('ethResult');
+  const r = await smartFetch('https://api.blockchair.com/ethereum/dashboards/address/'+encodeURIComponent(a));
+  if (r.status !== 200 || !r.data?.data?.[a.toLowerCase()]){ err('ethResult','Lookup fail ya address nahi mila'); return; }
+  const d = r.data.data[a.toLowerCase()].address;
+  const eth = v => (Number(v)/1e18).toFixed(6)+' ETH';
+  show('ethResult',
+    kv('Address', a) + kv('Balance', eth(d.balance)) +
+    kv('Transactions', d.transaction_count?.count || d.transaction_count || '—') +
+    '\n<a href="https://blockchair.com/ethereum/address/'+a+'" target="_blank">→ Blockchair</a> | <a href="https://etherscan.io/address/'+a+'" target="_blank">→ Etherscan</a>'
+  );
+}
+enterKey('ethInput', lookupETH);
+
+/* ---------- Dorks ---------- */
+function genDorks(){
+  const t = $('dorkInput').value.trim();
+  const box = $('dorkBox');
+  if(!t){ box.innerHTML=''; return; }
+  const isDomain = /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(t);
+  const site = isDomain ? 'site:'+t : '';
+  const dorks = [
+    ['Directory listing', 'intitle:"index of" '+(site||'"'+t+'"')],
+    ['Config / env files', (site||'site:'+t)+' (filetype:env OR filetype:conf OR filetype:cfg OR filetype:ini)'],
+    ['Backup files', (site||'site:'+t)+' (filetype:bak OR filetype:old OR filetype:sql OR filetype:zip OR filetype:tar)'],
+    ['Log files', (site||'site:'+t)+' (filetype:log OR filetype:txt "password")'],
+    ['Login pages', (site||'site:'+t)+' (inurl:login OR inurl:signin OR inurl:admin)'],
+    ['Admin panels', (site||'site:'+t)+' (intitle:admin OR inurl:admin)'],
+    ['Exposed documents', (site||'site:'+t)+' (filetype:xls OR filetype:docx OR filetype:pdf OR filetype:csv)'],
+    ['Credentials mentions', (site||'site:'+t)+' ("password" OR "passwd" OR "credentials") filetype:txt'],
+    ['Cloud buckets', '"'+t+'" (site:s3.amazonaws.com OR site:blob.core.windows.net OR site:storage.googleapis.com)'],
+    ['GitHub code mentions', '"'+t+'" site:github.com'],
+    ['Pastebin leaks', '"'+t+'" (site:pastebin.com OR site:gist.github.com)'],
+    ['Public Trello/docs', '"'+t+'" (site:trello.com OR site:docs.google.com OR site:notion.so)'],
+    ['Subdomain discovery', isDomain ? 'site:*.'+t+' -site:www.'+t : '"'+t+'" site:*'],
+    ['Error pages / stack traces', (site||'site:'+t)+' ("fatal error" OR "stack trace" OR "warning: mysql")'],
+    ['Swagger / API docs', (site||'site:'+t)+' (inurl:swagger OR inurl:api-docs OR filetype:json inurl:openapi)']
+  ];
+  box.innerHTML = dorks.map(([n,d]) => {
+    const g = 'https://www.google.com/search?q='+encodeURIComponent(d);
+    const b = 'https://www.bing.com/search?q='+encodeURIComponent(d);
+    const dd = 'https://duckduckgo.com/?q='+encodeURIComponent(d);
+    return '<div class="dork"><b style="color:var(--accent2)">'+n+':</b><br><code style="color:var(--accent)">'+esc(d)+'</code><br><a href="'+g+'" target="_blank" style="margin-right:10px">Google ↗</a><a href="'+b+'" target="_blank" style="margin-right:10px">Bing ↗</a><a href="'+dd+'" target="_blank">DDG ↗</a></div>';
+  }).join('');
+}
+enterKey('dorkInput', genDorks);
+
+/* ---------- Tool directory ---------- */
+const tools = [
+  ['OSINT Framework','Master directory','Recon','https://osintframework.com/'],
+  ['Bellingcat Toolkit','Investigations','Recon','https://bellingcat.gitbook.io/'],
+  ['Maltego CE','Visual link analysis','Recon','https://www.maltego.com/downloads/'],
+  ['Recon-ng','Web recon framework','CLI','https://github.com/lanmaster53/recon-ng'],
+  ['SpiderFoot','OSINT automation','CLI','https://github.com/smicallef/spiderfoot'],
+  ['Sherlock','Username OSINT','CLI','https://github.com/sherlock-project/sherlock'],
+  ['theHarvester','Emails/subdomains','CLI','https://github.com/laramies/theHarvester'],
+  ['PhoneInfoga','Phone OSINT','CLI','https://github.com/sundowndev/phoneinfoga'],
+  ['Amass','Network mapping','CLI','https://github.com/owasp-amass/amass'],
+  ['Nuclei','Vulnerability scanner','CLI','https://github.com/projectdiscovery/nuclei'],
+  ['Subfinder','Subdomain finder','CLI','https://github.com/projectdiscovery/subfinder'],
+  ['Shodan','Devices/IoT search','Recon','https://www.shodan.io/'],
+  ['Censys','Internet assets','Recon','https://search.censys.io/'],
+  ['ZoomEye','Cyberspace search','Recon','https://www.zoomeye.hk/'],
+  ['FOFA','Asset search','Recon','https://fofa.info/'],
+  ['HaveIBeenPwned','Email breaches','Breach','https://haveibeenpwned.com/'],
+  ['Dehashed','Breach search','Breach','https://www.dehashed.com/'],
+  ['IntelligenceX','Search engine','Breach','https://intelx.io/'],
+  ['Snusbase','Breach search','Breach','https://snusbase.com/'],
+  ['Wayback Machine','Site history','Domain','https://web.archive.org/'],
+  ['crt.sh','CT logs','Domain','https://crt.sh/'],
+  ['urlscan.io','URL scanning','Domain','https://urlscan.io/'],
+  ['VirusTotal','Files/URLs/domains','Domain','https://www.virustotal.com/'],
+  ['DNSDumpster','DNS recon','Domain','https://dnsdumpster.com/'],
+  ['ViewDNS','DNS toolbox','Domain','https://viewdns.info/'],
+  ['BGP.HE.net','ASN/network','Domain','https://bgp.he.net/'],
+  ['SSL Labs','SSL audit','Domain','https://www.ssllabs.com/ssltest/'],
+  ['SecurityHeaders','Header audit','Domain','https://securityheaders.com/'],
+  ['BuiltWith','Tech stack','Domain','https://builtwith.com/'],
+  ['Netcraft','Site report','Domain','https://sitereport.netcraft.com/'],
+  ['Hunter.io','Email finder','People','https://hunter.io/'],
+  ['Epieos','Email→accounts','People','https://epieos.com/'],
+  ['Truecaller','Phone lookup','People','https://www.truecaller.com/'],
+  ['Sync.me','Reverse phone','People','https://sync.me/'],
+  ['WebMii','People search','People','https://webmii.com/'],
+  ['Thatsthem','People search','People','https://thatsthem.com/'],
+  ['PimEyes','Face search','People','https://pimeyes.com/'],
+  ['Google GHDB','Dork database','Recon','https://www.exploit-db.com/google-hacking-database'],
+  ['Google Earth','Geo recon','Images','https://earth.google.com/'],
+  ['Exif.tools','Metadata viewer','Images','https://exif.tools/'],
+  ['Fotoforensics','Image analysis','Images','https://fotoforensics.com/'],
+  ['InVID','Video verification','Images','https://www.invid-project.eu/'],
+  ['SunCalc','Shadow/time analysis','Images','https://www.suncalc.org/'],
+  ['Yandex Images','Reverse image','Images','https://yandex.com/images/'],
+  ['TinEye','Reverse image','Images','https://tineye.com/'],
+  ['Blockchair','Blockchain search','Recon','https://blockchair.com/']
+];
+function renderTools(filter='all'){
+  $('toolDir').innerHTML = tools
+    .filter(t => filter==='all' || t[2]===filter)
+    .map(([name,cat,c,url])=>'<a href="'+url+'" target="_blank"><div class="name">'+name+' ↗</div><div class="cat">'+cat+' · '+c+'</div></a>').join('');
+}
+renderTools();
+document.querySelectorAll('#toolFilters .chip').forEach(c => c.onclick = () => {
+  document.querySelectorAll('#toolFilters .chip').forEach(x=>x.classList.remove('active'));
+  c.classList.add('active'); renderTools(c.dataset.f);
+});
+</script>
+<script src="advanced.js"></script>
+</body>
+</html>
